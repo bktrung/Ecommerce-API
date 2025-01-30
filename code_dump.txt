@@ -1,0 +1,149 @@
+
+========================================
+.\.env
+========================================
+NODE_ENV=dev
+DEV_APP_PORT=3000
+DEV_DB_HOST=localhost
+DEV_DB_PORT=27017
+DEV_DB_NAME=ecomDev
+========================================
+.\server.js
+========================================
+const app = require("./src/app");
+
+const PORT = process.env.PORT || 3000;
+
+const server = app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+// process.on('SIGNINT', () => {
+//   server.close(() => {
+//     console.log("Server is closed");
+//   });
+// });
+========================================
+.\src\app.js
+========================================
+const compression = require('compression');
+const express = require('express');
+const { default: helmet } = require('helmet');
+const morgan = require('morgan');
+const app = express();
+
+// init middlewares
+app.use(morgan('dev'));
+app.use(helmet());
+app.use(compression());
+
+// init db
+require('./dbs/init.mongodb');
+
+// init routes
+
+// handle errors
+
+module.exports = app;
+========================================
+.\src\configs\config.mongodb.js
+========================================
+const dev = {
+    app: {
+        port: process.env.DEV_APP_PORT || 3000
+    },
+    db: {
+        host: process.env.DEV_DB_HOST || 'localhost',
+        port: process.env.DEV_DB_PORT || 27017,
+        name: process.env.DEV_DB_NAME || 'ecomDev'
+    }
+}
+
+const pro = {
+    app: {
+        port: process.env.PRO_APP_PORT || 3000
+    },
+    db: {
+        host: process.env.PRO_DB_HOST || 'localhost',
+        port: process.env.PRO_DB_PORT || 27017,
+        name: process.env.PRO_DB_NAME || 'ecomPro'
+    }
+}
+
+const config = { dev, pro }
+const env = process.env.NODE_ENV || 'dev'
+module.exports = config[env]
+========================================
+.\src\dbs\init.mongodb.js
+========================================
+const mongoose = require('mongoose');
+const { countConnect } = require('../helpers/check.connect');
+const { db: { host, port, name } } = require('../configs/config.mongodb');
+const connectString = `mongodb://${host}:${port}/${name}`;
+
+class Database {
+    constructor() {
+        this._connect();
+    }
+
+    _connect(type = 'mongodb') {
+        if (1 === 1) {
+            mongoose.set('debug', true);
+            mongoose.set('debug', {color: true});
+        }
+
+        mongoose.connect(connectString, {
+            maxPoolSize: 5
+        }).then(() => {
+            console.log(`Connected to ${connectString}`, countConnect())
+        }).catch(err => {
+            console.error('Database connection error');
+        });
+    }
+
+    static getInstance() {
+        if (!Database.instance) {
+            Database.instance = new Database();
+        }
+        return Database.instance;
+    }
+}
+
+const db = Database.getInstance();
+module.exports = db;
+========================================
+.\src\helpers\check.connect.js
+========================================
+const mongoose = require('mongoose');
+const os = require('os');
+
+
+const countConnect = () => {
+    const numConnections = mongoose.connections.length;
+    console.log(`Number of connections: ${numConnections}`);
+}
+
+const checkOverload = () => {
+    const _SECONDS = 5000; // 5 seconds
+
+    setInterval(() => {
+        const numConnections = mongoose.connections.length;
+        const numCores = os.cpus().length;
+        const memoryUsage = process.memoryUsage().rss;
+
+        // check if the number of connections is overloading
+        const maxConnections = numCores * 2;
+
+        console.log(`Memory usage: ${memoryUsage / 1024 / 1024} MB`);
+
+        if (numConnections > maxConnections) {
+            console.log(`Number of connections: ${numConnections} is overloading`);
+        }
+
+    }, _SECONDS); // monitor every 5 seconds
+}
+
+module.exports = {
+    countConnect,
+    checkOverload
+}
