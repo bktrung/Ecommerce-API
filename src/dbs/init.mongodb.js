@@ -1,8 +1,10 @@
-const mongoose = require("mongoose");
-const { countConnect } = require("../helpers/check.connect");
+import { set, connect } from "mongoose";
+import checkConnect from "../helpers/check.connect.js";
+const { countConnect } = checkConnect;
+import configMongodb from "../configs/config.mongodb.js";
 const {
 	db: { host, port, name },
-} = require("../configs/config.mongodb");
+} = configMongodb;
 const connectString = `mongodb://${host}:${port}/${name}`;
 
 class Database {
@@ -10,14 +12,13 @@ class Database {
 		this._connect();
 	}
 
-	_connect(type = "mongodb") {
+	_connect(_type = "mongodb") {
 		if (process.env.NODE_ENV === "dev") {
-			mongoose.set("debug", true);
-			mongoose.set("debug", { color: true });
+			set("debug", true);
+			set("debug", { color: true });
 		}
 
-		mongoose
-			.connect(connectString, {
+		connect(connectString, {
 				maxPoolSize: 5,
 			})
 			.then(() => {
@@ -38,4 +39,4 @@ class Database {
 }
 
 const db = Database.getInstance();
-module.exports = db;
+export default db;

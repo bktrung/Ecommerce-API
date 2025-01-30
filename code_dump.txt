@@ -1,149 +1,376 @@
+========================================
+.\src\auth\authUtils.js
+========================================
+import pkg from 'jsonwebtoken';
+const { sign, verify } = pkg;
+import { createHash } from 'crypto';
 
-========================================
-.\.env
-========================================
-NODE_ENV=dev
-DEV_APP_PORT=3000
-DEV_DB_HOST=localhost
-DEV_DB_PORT=27017
-DEV_DB_NAME=ecomDev
-========================================
-.\server.js
-========================================
-const app = require("./src/app");
+class AuthUtils {
+	static TOKEN_TYPES = {
+		ACCESS: 'access',
+		REFRESH: 'refresh'
+	};
 
-const PORT = process.env.PORT || 3000;
+	static async createTokenPair(payload, privateKey, publicKey) {
+		try {
+			// Remove sensitive data from payload
+			const tokenPayload = {
+				userId: payload.userId,
+				email: payload.email,
+				roles: payload.roles
+			};
 
-const server = app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+			const accessToken = sign(
+				{
+					...tokenPayload,
+					type: this.TOKEN_TYPES.ACCESS
+				},
+				privateKey,
+				{
+					algorithm: 'RS256',
+					expiresIn: '2d',
+					notBefore: '0s', // Token is valid immediately
+					jwtid: createHash('sha256').update(Math.random().toString()).digest('hex')
+				}
+			);
+
+			const refreshToken = sign(
+				{
+					userId: payload.userId,
+					type: this.TOKEN_TYPES.REFRESH
+				},
+				privateKey,
+				{
+					algorithm: 'RS256',
+					expiresIn: '7d',
+					notBefore: '0s',
+					jwtid: createHash('sha256').update(Math.random().toString()).digest('hex')
+				}
+			);
+
+			return { accessToken, refreshToken };
+		} catch (error) {
+			throw new Error(`Token generation failed: ${error.message}`);
+		}
+	}
+
+	static async verifyToken(token, publicKey) {
+		try {
+			return verify(token, publicKey, {
+				algorithms: ['RS256']
+			});
+		} catch (error) {
+			throw new Error(`Token verification failed: ${error.message}`);
+		}
+	}
+}
+
+export default AuthUtils;
+========================================
+.\src\models\keytoken.model.js
+========================================
+import mongoose from 'mongoose'; 
+
+const DOCUMENT_NAME = 'Key';
+const COLLECTION_NAME = 'keys';
+
+const keyTokenSchema = new mongoose.Schema({
+	user: {
+		type: mongoose.Schema.Types.ObjectId,
+		required: true,
+		ref: 'Shop'
+	},
+	publicKey: {
+		type: String,
+		required: true,
+	},
+	refreshTokensUsed: {
+		type: Array,
+		default: []
+	},
+	refreshToken: {
+		type: String,
+		required: true
+	},
+	expiresAt: {
+		type: Date,
+		required: true
+	},
+	isRevoked: {
+		type: Boolean,
+		default: false
+	}
+}, {
+	collection: COLLECTION_NAME,
+	timestamps: true
 });
 
-// process.on('SIGNINT', () => {
-//   server.close(() => {
-//     console.log("Server is closed");
-//   });
-// });
+// Add indices for faster queries
+keyTokenSchema.index({ user: 1 });
+keyTokenSchema.index({ refreshToken: 1 });
+keyTokenSchema.index({ expiresAt: 1 });
+
+export default mongoose.model(DOCUMENT_NAME, keyTokenSchema);
+
 ========================================
-.\src\app.js
+.\src\models\shop.model.js
 ========================================
-const compression = require('compression');
-const express = require('express');
-const { default: helmet } = require('helmet');
-const morgan = require('morgan');
-const app = express();
+import mongoose from 'mongoose';
+const DOCUMENT_NAME = 'Shop';
+const COLLECTION_NAME = 'shops';
 
-// init middlewares
-app.use(morgan('dev'));
-app.use(helmet());
-app.use(compression());
-
-// init db
-require('./dbs/init.mongodb');
-
-// init routes
-
-// handle errors
-
-module.exports = app;
-========================================
-.\src\configs\config.mongodb.js
-========================================
-const dev = {
-    app: {
-        port: process.env.DEV_APP_PORT || 3000
+var shopSchema = new mongoose.Schema({
+    name:{
+        type:String,
+        trim:true,
+        maxLength:150
     },
-    db: {
-        host: process.env.DEV_DB_HOST || 'localhost',
-        port: process.env.DEV_DB_PORT || 27017,
-        name: process.env.DEV_DB_NAME || 'ecomDev'
-    }
-}
-
-const pro = {
-    app: {
-        port: process.env.PRO_APP_PORT || 3000
+    email:{
+        type:String,
+        unique:true,
+        trim:true
     },
-    db: {
-        host: process.env.PRO_DB_HOST || 'localhost',
-        port: process.env.PRO_DB_PORT || 27017,
-        name: process.env.PRO_DB_NAME || 'ecomPro'
+    password:{
+        type:String,
+        required:true,
+    },
+    status:{
+        type:String,
+        enum:['active','inactive'],
+        default:'inactive'
+    },
+    verify:{
+        type:mongoose.Schema.Types.Boolean,
+        default:false
+    },
+    role:{
+        type:Array,
+        default:[]
     }
+}, {
+    timestamps: true,
+    collection: COLLECTION_NAME
+});
+
+export default mongoose.model(DOCUMENT_NAME, shopSchema);
+========================================
+.\src\services\access.service.js
+========================================
+import ShopModel from "../models/shop.model.js"
+import { hash } from 'bcrypt'
+import { generateKeyPairSync, createPublicKey } from 'crypto'
+import KeyTokenService from "./keytoken.service.js"
+import AuthUtils from "../auth/authUtils.js"
+import { getInfoData } from "../utils/index.js"
+
+const RoleShop = {
+	SHOP: 'SHOP',
+	WRITER: 'WRITER',
+	EDITER: 'EDITER',
+	ADMIN: 'ADMIN'
 }
 
-const config = { dev, pro }
-const env = process.env.NODE_ENV || 'dev'
-module.exports = config[env]
-========================================
-.\src\dbs\init.mongodb.js
-========================================
-const mongoose = require('mongoose');
-const { countConnect } = require('../helpers/check.connect');
-const { db: { host, port, name } } = require('../configs/config.mongodb');
-const connectString = `mongodb://${host}:${port}/${name}`;
+class AccessService {
+	static async signUp({ name, email, password }) {
+		try {
+			// Input validation
+			if (!email || !password || !name) {
+				throw new Error('Missing required fields');
+			}
 
-class Database {
-    constructor() {
-        this._connect();
-    }
+			// Check email existence
+			const existingShop = await ShopModel.findOne({ email }).lean();
+			if (existingShop) {
+				throw new Error('Email already exists');
+			}
 
-    _connect(type = 'mongodb') {
-        if (1 === 1) {
-            mongoose.set('debug', true);
-            mongoose.set('debug', {color: true});
+			// Hash password with appropriate cost factor
+			const passwordHash = await hash(password, 10);
+
+			// Create shop with minimal required data
+			const newShop = await ShopModel.create({
+				name,
+				email,
+				password: passwordHash,
+				roles: [RoleShop.SHOP],
+			});
+
+			// Generate key pair with appropriate key size
+			const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+				modulusLength: 4096,
+				publicKeyEncoding: {
+					type: 'pkcs1',
+					format: 'pem'
+				},
+				privateKeyEncoding: {
+					type: 'pkcs1',
+					format: 'pem'
+				}
+			});
+
+			// Create tokens
+			const { accessToken, refreshToken } = 
+				await AuthUtils.createTokenPair(
+					{ userId: newShop._id, email },
+					privateKey,
+					publicKey
+				);
+
+			// Store token info
+			await KeyTokenService.createKeyToken({
+				userId: newShop._id,
+				publicKey,
+				refreshToken
+			});
+
+			return {
+				code: 201,
+				metadata: {
+					shop: getInfoData({
+						fields: ['_id', 'name', 'email'],
+						object: newShop
+					}),
+					tokens: { accessToken, refreshToken }
+				}
+			};
+		} catch (error) {
+			throw new Error(`Signup failed: ${error.message}`);
+		}
+	}
+
+	static async refreshToken(refreshToken) {
+        try {
+            const keyToken = await KeyTokenService.validateRefreshToken(refreshToken);
+            const publicKey = keyToken.publicKey;
+
+            // Verify the refresh token
+            await AuthUtils.verifyToken(refreshToken, publicKey);
+
+            // Generate new tokens
+            const { userId, email } = await AuthUtils.verifyToken(refreshToken, publicKey);
+            const { privateKey, publicKey: newPublicKey } = generateKeyPairSync('rsa', {
+                modulusLength: 4096,
+                publicKeyEncoding: {
+                    type: 'pkcs1',
+                    format: 'pem'
+                },
+                privateKeyEncoding: {
+                    type: 'pkcs1',
+                    format: 'pem'
+                }
+            });
+
+            const { accessToken, refreshToken: newRefreshToken } = await AuthUtils.createTokenPair(
+				{ userId, email },
+				privateKey,
+				newPublicKey
+			);
+
+            // Update the refresh token in the database
+            await KeyTokenService.updateKeyToken(keyToken._id, newPublicKey, newRefreshToken);
+
+			return {
+				code: 200,
+				metadata: {
+					tokens: { 
+						accessToken,
+						refreshToken: newRefreshToken // Include new refresh token
+					}
+				}
+			};
+        } catch (error) {
+            throw new Error(`Refresh token failed: ${error.message}`);
         }
-
-        mongoose.connect(connectString, {
-            maxPoolSize: 5
-        }).then(() => {
-            console.log(`Connected to ${connectString}`, countConnect())
-        }).catch(err => {
-            console.error('Database connection error');
-        });
-    }
-
-    static getInstance() {
-        if (!Database.instance) {
-            Database.instance = new Database();
-        }
-        return Database.instance;
     }
 }
 
-const db = Database.getInstance();
-module.exports = db;
+export default AccessService
+
 ========================================
-.\src\helpers\check.connect.js
+.\src\services\keytoken.service.js
 ========================================
-const mongoose = require('mongoose');
-const os = require('os');
+import KeyTokenModel from "../models/keytoken.model.js"
 
+class KeyTokenService {
+	static async createKeyToken({ userId, publicKey, refreshToken }) {
+		try {
+			const expiresAt = new Date();
+			expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
 
-const countConnect = () => {
-    const numConnections = mongoose.connections.length;
-    console.log(`Number of connections: ${numConnections}`);
-}
+			const token = await KeyTokenModel.create({
+				user: userId,
+				publicKey: publicKey.toString(),
+				refreshToken,
+				expiresAt
+			});
 
-const checkOverload = () => {
-    const _SECONDS = 5000; // 5 seconds
+			if (!token) throw new Error('Failed to create key token');
+			return token.publicKey;
+		} catch (error) {
+			throw new Error(`KeyToken creation failed: ${error.message}`);
+		}
+	}
 
-    setInterval(() => {
-        const numConnections = mongoose.connections.length;
-        const numCores = os.cpus().length;
-        const memoryUsage = process.memoryUsage().rss;
+	static async validateRefreshToken(refreshToken) {
+        try {
+            // Find token by refreshToken only
+            const token = await KeyTokenModel.findOne({
+                refreshToken,
+                isRevoked: false,
+                expiresAt: { $gt: new Date() }
+            });
 
-        // check if the number of connections is overloading
-        const maxConnections = numCores * 2;
+            if (!token) {
+                throw new Error('Invalid refresh token');
+            }
 
-        console.log(`Memory usage: ${memoryUsage / 1024 / 1024} MB`);
+            // Add token to used tokens list
+            token.refreshTokensUsed.push(refreshToken);
+            await token.save();
 
-        if (numConnections > maxConnections) {
-            console.log(`Number of connections: ${numConnections} is overloading`);
+            return token;
+        } catch (error) {
+            throw new Error(`Token validation failed: ${error.message}`);
         }
+    }
 
-    }, _SECONDS); // monitor every 5 seconds
+	static async revokeToken(userId) {
+		return await updateMany(
+			{ user: userId, isRevoked: false },
+			{ $set: { isRevoked: true } }
+		);
+	}
+
+	static async updateKeyToken(id, publicKey, refreshToken) {
+        try {
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
+            const updatedToken = await KeyTokenModel.findByIdAndUpdate(
+                id,
+                {
+                    publicKey,
+                    refreshToken,
+                    expiresAt
+                },
+                { new: true }
+            );
+            if (!updatedToken) throw new Error('Failed to update key token');
+            return updatedToken;
+        } catch (error) {
+            throw new Error(`KeyToken update failed: ${error.message}`);
+        }
+    }
 }
 
-module.exports = {
-    countConnect,
-    checkOverload
+export default KeyTokenService
+
+========================================
+.\src\utils\index.js
+========================================
+import pick from 'lodash/pick.js';
+
+const getInfoData = ({ fields=[], object={} }) => {
+    return pick(object, fields);
 }
+
+export { getInfoData }

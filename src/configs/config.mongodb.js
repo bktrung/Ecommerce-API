@@ -27,4 +27,4 @@ if (!config[env]) {
 	throw new Error(`Environment ${env} is not supported`);
 }
 
-module.exports = config[env];
+export default config[env];
