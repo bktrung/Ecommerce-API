@@ -7,6 +7,12 @@ const {
 } = configMongodb;
 const connectString = `mongodb://${host}:${port}/${name}`;
 
+/**
+ * @class Database
+ * @description Manages database connections using the Singleton pattern
+ * @example
+ * const db = Database.getInstance();
+ */
 class Database {
 	constructor() {
 		this._connect();

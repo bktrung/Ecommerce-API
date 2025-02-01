@@ -1,6 +1,6 @@
 import ShopModel from "../models/shop.model.js"
 import { hash } from 'bcrypt'
-import { generateKeyPairSync, createPublicKey } from 'crypto'
+import { generateKeyPairSync } from 'crypto'
 import KeyTokenService from "./keytoken.service.js"
 import AuthUtils from "../auth/authUtils.js"
 import { getInfoData } from "../utils/index.js"
@@ -12,6 +12,43 @@ const RoleShop = {
 	ADMIN: 'ADMIN'
 }
 
+/**
+ * @class AccessService
+ * @description Service class handling user access operations including signup and token refresh
+ * @static
+ */
+
+/**
+ * @method signUp
+ * @static
+ * @async
+ * @description Handles user signup process including validation, password hashing, and token generation
+ * @param {Object} params - The signup parameters
+ * @param {string} params.name - User's name
+ * @param {string} params.email - User's email
+ * @param {string} params.password - User's password
+ * @throws {Error} When required fields are missing
+ * @throws {Error} When email already exists
+ * @throws {Error} When signup process fails
+ * @returns {Promise<Object>} Object containing status code and metadata
+ * @returns {number} returns.code - HTTP status code (201 for success)
+ * @returns {Object} returns.metadata - Contains shop information and tokens
+ * @returns {Object} returns.metadata.shop - Shop information (_id, name, email)
+ * @returns {Object} returns.metadata.tokens - Access and refresh tokens
+ */
+
+/**
+ * @method refreshToken
+ * @static
+ * @async
+ * @description Refreshes user authentication tokens
+ * @param {string} refreshToken - Current refresh token
+ * @throws {Error} When token refresh process fails
+ * @returns {Promise<Object>} Object containing status code and new tokens
+ * @returns {number} returns.code - HTTP status code (200 for success)
+ * @returns {Object} returns.metadata - Contains new tokens
+ * @returns {Object} returns.metadata.tokens - New access and refresh tokens
+ */
 class AccessService {
 	static async signUp({ name, email, password }) {
 		try {
@@ -54,8 +91,7 @@ class AccessService {
 			const { accessToken, refreshToken } = 
 				await AuthUtils.createTokenPair(
 					{ userId: newShop._id, email },
-					privateKey,
-					publicKey
+					privateKey
 				);
 
 			// Store token info
@@ -103,8 +139,7 @@ class AccessService {
 
             const { accessToken, refreshToken: newRefreshToken } = await AuthUtils.createTokenPair(
 				{ userId, email },
-				privateKey,
-				newPublicKey
+				privateKey
 			);
 
             // Update the refresh token in the database
