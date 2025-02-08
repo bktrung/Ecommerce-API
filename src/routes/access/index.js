@@ -5,6 +5,6 @@ const router = Router();
 
 // signUp
 router.post('/shop/signup', asyncHandler(AccessController.signUp));
-router.post('/shop/refresh-token', AccessController.refreshToken);
+router.post("/shop/refresh-token", asyncHandler(AccessController.refreshToken));
 
 export default router;

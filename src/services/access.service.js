@@ -14,8 +14,17 @@ const RoleShop = {
 }
 
 /**
+ * @enum {string} RoleShop - Enum for different shop roles
+ * @readonly
+ * @property {string} SHOP - Basic shop role
+ * @property {string} WRITER - Content writer role
+ * @property {string} EDITER - Content editor role
+ * @property {string} ADMIN - Administrator role
+ */
+
+/**
  * @class AccessService
- * @description Service class handling user access operations including signup and token refresh
+ * @description Service class handling user authentication and authorization
  * @static
  */
 
@@ -23,35 +32,58 @@ const RoleShop = {
  * @method signUp
  * @static
  * @async
- * @description Handles user signup process including validation, password hashing, and token generation
- * @param {Object} params - The signup parameters
- * @param {string} params.name - User's name
- * @param {string} params.email - User's email
- * @param {string} params.password - User's password
- * @throws {Error} When required fields are missing
- * @throws {Error} When email already exists
- * @throws {Error} When signup process fails
- * @returns {Promise<Object>} Object containing status code and metadata
- * @returns {number} returns.code - HTTP status code (201 for success)
- * @returns {Object} returns.metadata - Contains shop information and tokens
- * @returns {Object} returns.metadata.shop - Shop information (_id, name, email)
- * @returns {Object} returns.metadata.tokens - Access and refresh tokens
+ * @description Creates a new shop account with the following steps:
+ * 1. Validates required fields (name, email, password)
+ * 2. Checks if email is already registered
+ * 3. Hashes password using bcrypt with salt rounds of 10
+ * 4. Creates new shop document with SHOP role
+ * 5. Generates RSA key pair (4096 bits)
+ * 6. Creates JWT token pair (access + refresh)
+ * 7. Stores public key and refresh token
+ * 
+ * @param {Object} signUpData
+ * @param {string} signUpData.name - Shop name
+ * @param {string} signUpData.email - Shop email address
+ * @param {string} signUpData.password - Shop password (plain text)
+ * @throws {BadRequestError} When required fields are missing
+ * @throws {BadRequestError} When email already exists
+ * @returns {Promise<Object>} 
+ * {
+ *   code: 201,
+ *   metadata: {
+ *     shop: {_id, name, email},
+ *     tokens: {accessToken, refreshToken}
+ *   }
+ * }
  */
 
 /**
  * @method refreshToken
  * @static
  * @async
- * @description Refreshes user authentication tokens
- * @param {string} refreshToken - Current refresh token
- * @throws {Error} When token refresh process fails
- * @returns {Promise<Object>} Object containing status code and new tokens
- * @returns {number} returns.code - HTTP status code (200 for success)
- * @returns {Object} returns.metadata - Contains new tokens
- * @returns {Object} returns.metadata.tokens - New access and refresh tokens
+ * @description Refreshes authentication tokens with the following steps:
+ * 1. Validates provided refresh token
+ * 2. Verifies token signature using stored public key
+ * 3. Generates new RSA key pair (4096 bits)
+ * 4. Creates new JWT token pair
+ * 5. Updates stored public key and refresh token
+ * 
+ * @param {string} refreshToken - Current valid refresh token
+ * @returns {Promise<Object>}
+ * {
+ *   code: 200,
+ *   metadata: {
+ *     tokens: {accessToken, refreshToken}
+ *   }
+ * }
  */
 class AccessService {
 	static async signUp({ name, email, password }) {
+		// Check for required fields
+		if (!name || !email || !password) {
+			throw new BadRequestError('Error: Missing required fields');
+		}
+
 		// Check email existence
 		const existingShop = await ShopModel.findOne({ email }).lean();
 		if (existingShop) {
@@ -109,46 +141,42 @@ class AccessService {
 	}
 
 	static async refreshToken(refreshToken) {
-        try {
-            const keyToken = await KeyTokenService.validateRefreshToken(refreshToken);
-            const publicKey = keyToken.publicKey;
+		const keyToken = await KeyTokenService.validateRefreshToken(refreshToken);
+		const publicKey = keyToken.publicKey;
 
-            // Verify the refresh token
-            const { userId, email } = await AuthUtils.verifyToken(refreshToken, publicKey);
+		// Verify the refresh token
+		const { userId, email } = await AuthUtils.verifyToken(refreshToken, publicKey);
 
-            // Generate new tokens
-            const { privateKey, publicKey: newPublicKey } = generateKeyPairSync('rsa', {
-                modulusLength: 4096,
-                publicKeyEncoding: {
-                    type: 'pkcs1',
-                    format: 'pem'
-                },
-                privateKeyEncoding: {
-                    type: 'pkcs1',
-                    format: 'pem'
-                }
-            });
+		// Generate new tokens
+		const { privateKey, publicKey: newPublicKey } = generateKeyPairSync('rsa', {
+			modulusLength: 4096,
+			publicKeyEncoding: {
+				type: 'pkcs1',
+				format: 'pem'
+			},
+			privateKeyEncoding: {
+				type: 'pkcs1',
+				format: 'pem'
+			}
+		});
 
-            const { accessToken, refreshToken: newRefreshToken } = await AuthUtils.createTokenPair(
-				{ userId, email },
-				privateKey
-			);
+		const { accessToken, refreshToken: newRefreshToken } = await AuthUtils.createTokenPair(
+			{ userId, email },
+			privateKey
+		);
 
-            // Update the refresh token in the database
-            await KeyTokenService.updateKeyToken(keyToken._id, newPublicKey, newRefreshToken);
+		// Update the refresh token in the database
+		await KeyTokenService.updateKeyToken(keyToken._id, newPublicKey, newRefreshToken);
 
-			return {
-				code: 200,
-				metadata: {
-					tokens: { 
-						accessToken,
-						refreshToken: newRefreshToken // Include new refresh token
-					}
+		return {
+			code: 200,
+			metadata: {
+				tokens: { 
+					accessToken,
+					refreshToken: newRefreshToken // Include new refresh token
 				}
-			};
-        } catch (error) {
-            throw new Error(`Refresh token failed: ${error.message}`);
-        }
+			}
+		};
     }
 }
 
