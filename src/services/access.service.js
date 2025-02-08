@@ -4,6 +4,7 @@ import { generateKeyPairSync } from 'crypto'
 import KeyTokenService from "./keytoken.service.js"
 import AuthUtils from "../auth/authUtils.js"
 import { getInfoData } from "../utils/index.js"
+import { BadRequestError } from "../core/error.response.js";
 
 const RoleShop = {
 	SHOP: 'SHOP',
@@ -51,69 +52,60 @@ const RoleShop = {
  */
 class AccessService {
 	static async signUp({ name, email, password }) {
-		try {
-			// Input validation
-			if (!email || !password || !name) {
-				throw new Error('Missing required fields');
-			}
-
-			// Check email existence
-			const existingShop = await ShopModel.findOne({ email }).lean();
-			if (existingShop) {
-				throw new Error('Email already exists');
-			}
-
-			// Hash password with appropriate cost factor
-			const passwordHash = await hash(password, 10);
-
-			// Create shop with minimal required data
-			const newShop = await ShopModel.create({
-				name,
-				email,
-				password: passwordHash,
-				roles: [RoleShop.SHOP],
-			});
-
-			// Generate key pair with appropriate key size
-			const { privateKey, publicKey } = generateKeyPairSync('rsa', {
-				modulusLength: 4096,
-				publicKeyEncoding: {
-					type: 'pkcs1',
-					format: 'pem'
-				},
-				privateKeyEncoding: {
-					type: 'pkcs1',
-					format: 'pem'
-				}
-			});
-
-			// Create tokens
-			const { accessToken, refreshToken } = 
-				await AuthUtils.createTokenPair(
-					{ userId: newShop._id, email },
-					privateKey
-				);
-
-			// Store token info
-			await KeyTokenService.createKeyToken({
-				userId: newShop._id,
-				publicKey,
-				refreshToken
-			});
-
-			return {
-				code: 201,
-				metadata: {
-					shop: getInfoData({
-						fields: ['_id', 'name', 'email'],
-						object: newShop
-					}),
-					tokens: { accessToken, refreshToken }
-				}
-			};
-		} catch (error) {
-			throw new Error(`Signup failed: ${error.message}`);
+		// Check email existence
+		const existingShop = await ShopModel.findOne({ email }).lean();
+		if (existingShop) {
+			throw new BadRequestError('Error: Email already exists');
 		}
+
+		// Hash password with appropriate cost factor
+		const passwordHash = await hash(password, 10);
+
+		// Create shop with minimal required data
+		const newShop = await ShopModel.create({
+			name,
+			email,
+			password: passwordHash,
+			roles: [RoleShop.SHOP],
+		});
+
+		// Generate key pair with appropriate key size
+		const { privateKey, publicKey } = generateKeyPairSync('rsa', {
+			modulusLength: 4096,
+			publicKeyEncoding: {
+				type: 'pkcs1',
+				format: 'pem'
+			},
+			privateKeyEncoding: {
+				type: 'pkcs1',
+				format: 'pem'
+			}
+		});
+
+		// Create tokens
+		const { accessToken, refreshToken } = 
+			await AuthUtils.createTokenPair(
+				{ userId: newShop._id, email },
+				privateKey
+			);
+
+		// Store token info
+		await KeyTokenService.createKeyToken({
+			userId: newShop._id,
+			publicKey,
+			refreshToken
+		});
+
+		return {
+			code: 201,
+			metadata: {
+				shop: getInfoData({
+					fields: ['_id', 'name', 'email'],
+					object: newShop
+				}),
+				tokens: { accessToken, refreshToken }
+			}
+		};
 	}
 
 	static async refreshToken(refreshToken) {

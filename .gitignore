@@ -130,5 +130,5 @@ dist
 .pnp.*
 
 # Source code plainer
-export_to_text.py
-code_dump.txt
+plain_code.txt
+code_plainer.py
