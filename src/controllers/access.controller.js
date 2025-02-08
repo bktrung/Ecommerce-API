@@ -1,14 +1,24 @@
 import AccessService from '../services/access.service.js';
+import { CREATED, OK } from "../core/success.response.js";
 
 class AccessController {
     signUp = async (req, res, next) => {
-        return res.status(201).json(await AccessService.signUp(req.body));
+        const metadata = await AccessService.signUp(req.body);
+		CREATED.send({
+			res,
+			message: "Shop registered successfully",
+			metadata,
+		});
     }
 
 	refreshToken = async (req, res, next) => {
 		const { refreshToken } = req.body;
-		const result = await AccessService.refreshToken(refreshToken);
-		return res.status(200).json(result);
+		const metadata = await AccessService.refreshToken(refreshToken);
+		OK.send({
+			res,
+			message: "Token refreshed successfully",
+			metadata,
+		});
     }
 }
 

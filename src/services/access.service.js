@@ -129,14 +129,11 @@ class AccessService {
 		});
 
 		return {
-			code: 201,
-			metadata: {
-				shop: getInfoData({
-					fields: ['_id', 'name', 'email'],
-					object: newShop
-				}),
-				tokens: { accessToken, refreshToken }
-			}
+			shop: getInfoData({
+				fields: ['_id', 'name', 'email'],
+				object: newShop
+			}),
+			tokens: { accessToken, refreshToken }
 		};
 	}
 
@@ -169,12 +166,9 @@ class AccessService {
 		await KeyTokenService.updateKeyToken(keyToken._id, newPublicKey, newRefreshToken);
 
 		return {
-			code: 200,
-			metadata: {
-				tokens: { 
-					accessToken,
-					refreshToken: newRefreshToken // Include new refresh token
-				}
+			tokens: { 
+				accessToken,
+				refreshToken: newRefreshToken // Include new refresh token
 			}
 		};
     }
