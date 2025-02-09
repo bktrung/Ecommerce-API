@@ -34,6 +34,8 @@ const keyTokenSchema = new mongoose.Schema({
 	timestamps: true
 });
 
+// Add deviceId if needed multiple devices login
+
 // Add indices for faster queries
 keyTokenSchema.index({ user: 1 });
 keyTokenSchema.index({ refreshToken: 1 });

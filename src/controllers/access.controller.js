@@ -28,6 +28,14 @@ class AccessController {
 			metadata,
 		});
 	}
+
+	logout = async (req, res, next) => {
+		await AccessService.logout(req.keyToken);
+		OK.send({
+			res,
+			message: "Shop logged out successfully",
+		});
+	}
 }
 
 export default new AccessController();

@@ -1,3 +1,4 @@
+import { Types } from "mongoose";
 import { BadRequestError } from "../core/error.response.js";
 import KeyTokenModel from "../models/keytoken.model.js"
 
@@ -26,26 +27,25 @@ class KeyTokenService {
 		const expiresAt = new Date();
 		expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
 
-		// const token = await KeyTokenModel.create({
-		// 	user: userId,
-		// 	publicKey: publicKey.toString(),
-		// 	refreshToken,
-		// 	expiresAt,
-		// }); // For mutiple devices login
-
 		// For single device login
 		const filter = { user: userId };
 		const update = {
 			publicKey: publicKey.toString(),
 			refreshToken,
 			expiresAt,
+			isRevoked: false,
 			refreshTokensUsed: [], // Reset used tokens when creating/updating
 		};
 		const options = { upsert: true, new: true };
 
-		const token = await KeyTokenModel.findOneAndUpdate(filter, update, options).lean();
+		const token = await KeyTokenModel.findOneAndUpdate(
+			filter,
+			update,
+			options
+		).lean();
 
-		if (!token) throw new Error("Error: Failed to create or update key token");
+		if (!token)
+			throw new Error("Error: Failed to create or update key token");
 
 		return token.publicKey;
 	}
@@ -58,8 +58,8 @@ class KeyTokenService {
 	 * - Finding token that matches refresh token
 	 * - Checking if token is not revoked and not expired
 	 * - Adding refresh token to used tokens list
-	 * 
-	 * @param {string} refreshToken - Token to validate 
+	 *
+	 * @param {string} refreshToken - Token to validate
 	 * @throws {BadRequestError} If token is invalid
 	 * @returns {Promise<Object>} Found and validated token document
 	 */
@@ -86,17 +86,18 @@ class KeyTokenService {
 	 * @method revokeToken
 	 * @static
 	 * @async
-	 * @description Revokes user tokens by:
-	 * - Finding all active tokens
+	 * @description Revokes a specific token by:
+	 * - Finding the token by ID
 	 * - Setting revoked status
 	 *
-	 * @param {string} userId - User ID to revoke tokens for
-	 * @returns {Promise<Object>} Bulk update result
+	 * @param {string} tokenId - Token ID to revoke
+	 * @returns {Promise<Object>} Updated token document
 	 */
-	static async revokeToken(userId) {
-		return await updateMany(
-			{ user: userId, isRevoked: false },
-			{ $set: { isRevoked: true } }
+	static async revokeToken(tokenId) {
+		return await KeyTokenModel.findByIdAndUpdate(
+			tokenId,
+			{ isRevoked: true },
+			{ new: true }
 		);
 	}
 
@@ -129,6 +130,17 @@ class KeyTokenService {
 		);
 		if (!updatedToken) throw new Error("Error: Failed to update key token");
 		return updatedToken;
+	}
+
+	/**
+	 * Find a key token by user ID.
+	 * @static
+	 * @async
+	 * @param {string} userId - The ID of the user to find the key token for
+	 * @returns {Promise<Object|null>} The key token document if found, null otherwise
+	 */
+	static async findByUserId(userId) {
+		return await KeyTokenModel.findOne({ user: new Types.ObjectId(userId) }).lean();
 	}
 }
 

@@ -1,7 +1,7 @@
 import ShopModel from "../models/shop.model.js"
 import { hash, compare } from 'bcrypt'
 import KeyTokenService from "./keytoken.service.js"
-import AuthUtils from "../auth/authUtils.js"
+import { createTokenPair, verifyToken, generateKeyPair } from "../auth/authUtils.js"
 import { getInfoData } from "../utils/index.js"
 import { BadRequestError, AuthFailureError } from "../core/error.response.js";
 import ShopService from "./shop.service.js"
@@ -61,10 +61,10 @@ class AccessService {
 		});
 
 		// Generate key pair
-		const { privateKey, publicKey } = AuthUtils.generateKeyPair();
+		const { privateKey, publicKey } = generateKeyPair();
 
 		// Create tokens
-		const { accessToken, refreshToken } = AuthUtils.createTokenPair(
+		const { accessToken, refreshToken } = createTokenPair(
 			{ userId: newShop._id, email },
 			privateKey
 		);
@@ -106,18 +106,18 @@ class AccessService {
 		const publicKey = keyToken.publicKey;
 
 		// Verify the refresh token
-		const { userId, email } = AuthUtils.verifyToken(
+		const { userId, email } = verifyToken(
 			refreshToken,
 			publicKey
 		);
 
 		// Generate new tokens
 		const { privateKey, publicKey: newPublicKey } =
-			AuthUtils.generateKeyPair();
+			generateKeyPair();
 
 		// Create new token pair
 		const { accessToken, refreshToken: newRefreshToken } =
-			AuthUtils.createTokenPair({ userId, email }, privateKey);
+			createTokenPair({ userId, email }, privateKey);
 
 		// Update the refresh token in the database
 		await KeyTokenService.updateKeyToken(
@@ -168,10 +168,10 @@ class AccessService {
 		}
 
 		// Generate key pair
-		const { privateKey, publicKey } = AuthUtils.generateKeyPair();
+		const { privateKey, publicKey } = generateKeyPair();
 
 		// Create tokens
-		const { accessToken, refreshToken } = AuthUtils.createTokenPair(
+		const { accessToken, refreshToken } = createTokenPair(
 			{ userId: shop._id, email },
 			privateKey
 		);
@@ -190,6 +190,10 @@ class AccessService {
 			}),
 			tokens: { accessToken, refreshToken },
 		};
+	}
+
+	static async logout(keyToken) {
+		return await KeyTokenService.revokeToken(keyToken._id);
 	}
 }
 
