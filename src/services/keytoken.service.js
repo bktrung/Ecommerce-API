@@ -26,14 +26,27 @@ class KeyTokenService {
 		const expiresAt = new Date();
 		expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
 
-		const token = await KeyTokenModel.create({
-			user: userId,
+		// const token = await KeyTokenModel.create({
+		// 	user: userId,
+		// 	publicKey: publicKey.toString(),
+		// 	refreshToken,
+		// 	expiresAt,
+		// }); // For mutiple devices login
+
+		// For single device login
+		const filter = { user: userId };
+		const update = {
 			publicKey: publicKey.toString(),
 			refreshToken,
 			expiresAt,
-		});
+			refreshTokensUsed: [], // Reset used tokens when creating/updating
+		};
+		const options = { upsert: true, new: true };
 
-		if (!token) throw new Error("Error: Failed to create key token");
+		const token = await KeyTokenModel.findOneAndUpdate(filter, update, options).lean();
+
+		if (!token) throw new Error("Error: Failed to create or update key token");
+
 		return token.publicKey;
 	}
 
