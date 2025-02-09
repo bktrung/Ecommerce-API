@@ -26,7 +26,7 @@ var shopSchema = new mongoose.Schema({
         type:mongoose.Schema.Types.Boolean,
         default:false
     },
-    role:{
+    roles:{
         type:Array,
         default:[]
     }
