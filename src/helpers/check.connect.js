@@ -2,7 +2,9 @@ import { connections } from "mongoose";
 import { cpus } from "os";
 
 /**
- * Count and log the current number of MongoDB connections
+ * @function countConnect
+ * @description Counts and logs the current number of active MongoDB connections
+ * @returns {void}
  */
 const countConnect = () => {
 	const numConnections = connections.length;
@@ -10,8 +12,13 @@ const countConnect = () => {
 };
 
 /**
- * Monitor system for connection overload
- * Checks connections against CPU cores and memory usage every 5 seconds
+ * @function checkOverload
+ * @description Monitors system for connection overload by:
+ * - Checking connection count against CPU core count
+ * - Monitoring memory usage
+ * - Alerting if connections exceed threshold (2 per CPU core)
+ * - Running checks every 5 seconds
+ * @returns {void}
  */
 const checkOverload = () => {
 	const _SECONDS = 5000; // 5 seconds interval for monitoring

@@ -1,51 +1,27 @@
+import { BadRequestError } from "../core/error.response.js";
 import KeyTokenModel from "../models/keytoken.model.js"
 
 /**
  * @class KeyTokenService
- * @description Service class for managing authentication tokens with public/private key pairs
- * @static
- */
-
-/**
- * Creates a new key token for a user with a 7-day expiration
- * @static
- * @async
- * @param {Object} params - The parameters for creating a key token
- * @param {string} params.userId - The ID of the user
- * @param {string|Object} params.publicKey - The public key for the token (will be converted to string)
- * @param {string} params.refreshToken - The refresh token to be stored
- * @returns {Promise<string>} The public key of the created token
- * @throws {Error} If token creation fails in the database
- */
-
-/**
- * Validates a refresh token and marks it as used
- * @static
- * @async
- * @param {string} refreshToken - The refresh token to validate
- * @returns {Promise<Object>} The validated token document including user reference
- * @throws {Error} If token is expired, revoked, or not found in database
- */
-
-/**
- * Revokes all active tokens for a specific user
- * @static
- * @async
- * @param {string} userId - The ID of the user whose tokens should be revoked
- * @returns {Promise<Object>} The result of the bulk update operation
- */
-
-/**
- * Updates an existing key token with new credentials and extends expiration
- * @static
- * @async
- * @param {string} id - The ID of the token document to update
- * @param {string} publicKey - The new public key to store
- * @param {string} refreshToken - The new refresh token to store
- * @returns {Promise<Object>} The updated token document with new expiration
- * @throws {Error} If token update fails or document not found
+ * @description Handles token operations
  */
 class KeyTokenService {
+	/**
+	 * @method createKeyToken
+	 * @static
+	 * @async
+	 * @description Creates new key token for user by:
+	 * - Setting 7-day expiration
+	 * - Storing user ID, public key and refresh token
+	 * - Validating successful creation
+	 *
+	 * @param {Object} params
+	 * @param {string} params.userId - User ID for token
+	 * @param {string|Object} params.publicKey - Public key to store
+	 * @param {string} params.refreshToken - Refresh token to store
+	 * @throws {Error} If token creation fails
+	 * @returns {Promise<string>} Created token's public key
+	 */
 	static async createKeyToken({ userId, publicKey, refreshToken }) {
 		const expiresAt = new Date();
 		expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
@@ -54,23 +30,36 @@ class KeyTokenService {
 			user: userId,
 			publicKey: publicKey.toString(),
 			refreshToken,
-			expiresAt
+			expiresAt,
 		});
 
-		if (!token) throw new Error('Failed to create key token');
+		if (!token) throw new Error("Error: Failed to create key token");
 		return token.publicKey;
 	}
 
+	/**
+	 * @method validateRefreshToken
+	 * @static
+	 * @async
+	 * @description Validates refresh token by:
+	 * - Finding token that matches refresh token
+	 * - Checking if token is not revoked and not expired
+	 * - Adding refresh token to used tokens list
+	 * 
+	 * @param {string} refreshToken - Token to validate 
+	 * @throws {BadRequestError} If token is invalid
+	 * @returns {Promise<Object>} Found and validated token document
+	 */
 	static async validateRefreshToken(refreshToken) {
 		// Find token by refreshToken only
 		const token = await KeyTokenModel.findOne({
 			refreshToken,
 			isRevoked: false,
-			expiresAt: { $gt: new Date() }
+			expiresAt: { $gt: new Date() },
 		});
 
 		if (!token) {
-			throw new Error('Invalid refresh token');
+			throw new BadRequestError("Error: Invalid refresh token");
 		}
 
 		// Add token to used tokens list
@@ -78,8 +67,19 @@ class KeyTokenService {
 		await token.save();
 
 		return token;
-    }
+	}
 
+	/**
+	 * @method revokeToken
+	 * @static
+	 * @async
+	 * @description Revokes user tokens by:
+	 * - Finding all active tokens
+	 * - Setting revoked status
+	 *
+	 * @param {string} userId - User ID to revoke tokens for
+	 * @returns {Promise<Object>} Bulk update result
+	 */
 	static async revokeToken(userId) {
 		return await updateMany(
 			{ user: userId, isRevoked: false },
@@ -87,6 +87,21 @@ class KeyTokenService {
 		);
 	}
 
+	/**
+	 * @method updateKeyToken
+	 * @static
+	 * @async
+	 * @description Updates token credentials by:
+	 * - Finding existing token
+	 * - Setting new expiration
+	 * - Storing new public key and refresh token
+	 *
+	 * @param {string} id - Token ID to update
+	 * @param {string} publicKey - New public key
+	 * @param {string} refreshToken - New refresh token
+	 * @throws {Error} If update fails
+	 * @returns {Promise<Object>} Updated token document
+	 */
 	static async updateKeyToken(id, publicKey, refreshToken) {
 		const expiresAt = new Date();
 		expiresAt.setDate(expiresAt.getDate() + 7); // 7 days from now
@@ -95,13 +110,13 @@ class KeyTokenService {
 			{
 				publicKey,
 				refreshToken,
-				expiresAt
+				expiresAt,
 			},
 			{ new: true }
 		);
-		if (!updatedToken) throw new Error('Failed to update key token');
+		if (!updatedToken) throw new Error("Error: Failed to update key token");
 		return updatedToken;
-    }
+	}
 }
 
 export default KeyTokenService

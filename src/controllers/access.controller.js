@@ -12,14 +12,22 @@ class AccessController {
     }
 
 	refreshToken = async (req, res, next) => {
-		const { refreshToken } = req.body;
-		const metadata = await AccessService.refreshToken(refreshToken);
+		const metadata = await AccessService.refreshToken(req.body);
 		OK.send({
 			res,
 			message: "Token refreshed successfully",
 			metadata,
 		});
     }
+
+	login = async (req, res, next) => {
+		const metadata = await AccessService.login(req.body);
+		OK.send({
+			res,
+			message: "Shop logged in successfully",
+			metadata,
+		});
+	}
 }
 
 export default new AccessController();
