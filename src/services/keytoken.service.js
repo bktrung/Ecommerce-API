@@ -68,7 +68,7 @@ class KeyTokenService {
 	 * @returns {Promise<Object>} Updated token document
 	 */
 	static async validateRefreshToken(refreshToken) {
-		// Check if token is used
+		// Hacker get the refresh token and use it -> user use old refresh token -> notify user and revoke the token
 		const usedToken = await this.findByRefreshTokenUsed(refreshToken);
 		if (usedToken) {
 			await this.revokeToken(usedToken._id);
