@@ -124,31 +124,52 @@ export const generateKeyPair = () => {
 	}
 }
 
+/**
+ * @function authentication
+ * @description Authenticates user requests by:
+ * - Validating client ID from headers
+ * - Checking if key token exists and is valid
+ * - Verifying access token signature
+ * - Confirming token user ID matches client ID
+ *
+ * @param {Object} req - Express request object
+ * @param {Object} req.headers - Request headers containing client ID and token
+ * @param {Object} res - Express response object
+ * @param {Function} next - Express next middleware function
+ * @returns {Promise<void>} Proceeds to next middleware if auth successful
+ */
 export const authentication = asyncHandler(async (req, res, next) => {
+	// Extract client ID from headers
 	const userId = req.headers[HEADER.CLIENT_ID];
 	if (!userId) {
 		throw new AuthFailureError("Error: Invalid request");
 	}
 
+	// Find key token for client ID
 	const keyToken = await KeyTokenService.findByUserId(userId);
 	if (!keyToken) {
 		throw new NotFoundError("Error: Key token not found");
 	}
 
+	// Check if key token is revoked
 	if (keyToken.isRevoked) {
 		throw new AuthFailureError("Error: Key token revoked");
 	}
 
+	// Verify access token signature
 	const accessToken = req.headers[HEADER.AUTHORIZATION];
 	if (!accessToken) {
 		throw new AuthFailureError("Error: Invalid request");
 	}
 
 	try {
+		// Decode access token and verify user ID
 		const decodeUser = verifyToken(accessToken, keyToken.publicKey);
 		if (decodeUser.userId !== userId) {
 			throw new AuthFailureError("Error: Invalid request");
 		}
+
+		// Attach key token to request object
 		req.keyToken = keyToken;
 		return next();
 	} catch (error) {

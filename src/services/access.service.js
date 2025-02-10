@@ -100,6 +100,10 @@ class AccessService {
 	 * @returns {Promise<Object>} New auth tokens
 	 */
 	static async refreshToken({ refreshToken }) {
+		if (!refreshToken) {
+			throw new BadRequestError("Error: Missing required fields");
+		}
+
 		const keyToken = await KeyTokenService.validateRefreshToken(
 			refreshToken
 		);
@@ -192,6 +196,17 @@ class AccessService {
 		};
 	}
 
+	/**
+	 * @method logout
+	 * @static
+	 * @async
+	 * @description Logs out user by revoking their token:
+	 * - Takes keyToken object
+	 * - Revokes token in database
+	 * 
+	 * @param {Object} keyToken - Token object to revoke
+	 * @returns {Promise<boolean>} Success status of token revocation
+	 */
 	static async logout(keyToken) {
 		return await KeyTokenService.revokeToken(keyToken._id);
 	}

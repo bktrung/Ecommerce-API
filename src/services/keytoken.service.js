@@ -1,6 +1,7 @@
 import { Types } from "mongoose";
-import { BadRequestError } from "../core/error.response.js";
+import { BadRequestError, ForbiddenError } from "../core/error.response.js";
 import KeyTokenModel from "../models/keytoken.model.js"
+import { verifyToken } from "../auth/authUtils.js";
 
 /**
  * @class KeyTokenService
@@ -53,33 +54,49 @@ class KeyTokenService {
 	/**
 	 * @method validateRefreshToken
 	 * @static
-	 * @async
+	 * @async  
 	 * @description Validates refresh token by:
-	 * - Finding token that matches refresh token
-	 * - Checking if token is not revoked and not expired
+	 * - Checking if token was previously used
+	 * - Finding active token matching refresh token
+	 * - Verifying token is not revoked
 	 * - Adding refresh token to used tokens list
-	 *
+	 * 
 	 * @param {string} refreshToken - Token to validate
-	 * @throws {BadRequestError} If token is invalid
-	 * @returns {Promise<Object>} Found and validated token document
+	 * @throws {ForbiddenError} If token was previously used
+	 * @throws {BadRequestError} If token is invalid or revoked
+	 * @throws {Error} If failed to update token
+	 * @returns {Promise<Object>} Updated token document
 	 */
 	static async validateRefreshToken(refreshToken) {
+		// Check if token is used
+		const usedToken = await this.findByRefreshTokenUsed(refreshToken);
+		if (usedToken) {
+			await this.revokeToken(usedToken._id);
+			throw new ForbiddenError("Error: Something went wrong. Please login again.");
+		}
+
 		// Find token by refreshToken only
-		const token = await KeyTokenModel.findOne({
-			refreshToken,
-			isRevoked: false,
-			expiresAt: { $gt: new Date() },
-		});
+		const token = await this.findByRefreshToken(refreshToken);
 
 		if (!token) {
 			throw new BadRequestError("Error: Invalid refresh token");
 		}
 
-		// Add token to used tokens list
-		token.refreshTokensUsed.push(refreshToken);
-		await token.save();
+		if (token.isRevoked) {
+			throw new BadRequestError("Error: Token has been revoked");
+		}
 
-		return token;
+		const updatedToken = await KeyTokenModel.findOneAndUpdate(
+			{ _id: token._id },
+			{ $push: { refreshTokensUsed: refreshToken } },
+			{ new: true }
+		);
+
+		if (!updatedToken) {
+			throw new Error("Error: Failed to update key token");
+		}
+
+		return updatedToken;
 	}
 
 	/**
@@ -141,6 +158,34 @@ class KeyTokenService {
 	 */
 	static async findByUserId(userId) {
 		return await KeyTokenModel.findOne({ user: new Types.ObjectId(userId) }).lean();
+	}
+
+	/**
+	 * Find a key token by public key.
+	 * @static
+	 * @async
+	 * @param {string} publicKey - The public key to find the key token for
+	 * @returns {Promise<Object|null>} The key token document if found, null otherwise
+	 */
+	static async findByRefreshToken(refreshToken) {
+		return await KeyTokenModel.findOne({
+			refreshToken,
+			isRevoked: false,
+			expiresAt: { $gt: new Date() },
+		}).lean();
+	}
+
+	/**
+	 * Find a key token by used refresh token.
+	 * @static
+	 * @async
+	 * @param {string} refreshToken - The refresh token to find the key token for
+	 * @returns {Promise<Object|null>} The key token document if found, null otherwise
+	 */
+	static async findByRefreshTokenUsed(refreshToken) {
+		return await KeyTokenModel.findOne({
+			refreshTokensUsed: refreshToken,
+		}).lean();
 	}
 }
 
