@@ -1,5 +1,16 @@
-import { BadRequestError } from '../core/error.response.js';
-import { product, clothing, electronic, furniture } from '../models/product.model.js';
+import { BadRequestError } from "../core/error.response.js";
+import {
+	product,
+	clothing,
+	electronic,
+	furniture,
+} from "../models/product.model.js";
+import {
+	publishProductByShop,
+	unpublishProductByShop,
+	queryProduct,
+	searchProductByUser,
+} from "../models/repositories/product.repo.js";
 
 class ProductFactory {
 	static productRegistry = {};
@@ -15,6 +26,28 @@ class ProductFactory {
 		}
 
 		return new productClass(attributes).createProduct();
+	}
+
+	static async publishProductByShop({ product_shop, product_id }) {
+		return await publishProductByShop({ product_shop, product_id });
+	}
+
+	static async unpublishProductByShop({ product_shop, product_id }) {
+		return await unpublishProductByShop({ product_shop, product_id });
+	}
+
+	static async findAllDraftsForShop({ product_shop, limit = 50, skip = 0 }) {
+		const query = { product_shop, isDraft: true };
+		return await queryProduct({ query, limit, skip });
+	}
+
+	static async findAllPublishedForShop({ product_shop, limit = 50, skip = 0 }) {
+		const query = { product_shop, isPublished: true };
+		return await queryProduct({ query, limit, skip });
+	}
+
+	static async getListSearchProduct({ keySearch }) {
+		return await searchProductByUser({ keySearch });
 	}
 }
 
@@ -55,7 +88,9 @@ class Clothing extends Product {
 		});
 
 		if (!newColothing) {
-			throw new BadRequestError("Error: Failed to create clothing product");
+			throw new BadRequestError(
+				"Error: Failed to create clothing product"
+			);
 		}
 
 		const newProduct = await super.createProduct(newColothing._id);

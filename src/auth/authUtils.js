@@ -165,11 +165,9 @@ export const authentication = asyncHandler(async (req, res, next) => {
 	try {
 		// Decode access token and verify user ID
 		const decodeUser = verifyToken(accessToken, keyToken.publicKey);
-		console.log(decodeUser);
 		if (decodeUser.userId !== userId) {
 			throw new AuthFailureError("Error: Invalid request");
 		}
-		console.log(keyToken);
 		// Attach key token and user to request object
 		req.keyToken = keyToken;
 		req.user = decodeUser;

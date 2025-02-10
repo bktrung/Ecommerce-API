@@ -1,4 +1,5 @@
 import { model, Schema } from "mongoose";
+import slugify from "slugify";
 
 const DOCUMENT_NAME = "Product";
 const COLLECTION_NAME = "products";
@@ -15,6 +16,7 @@ const productSchema = new Schema(
 			type: String,
 			required: true,
 		},
+		product_slug: String,
 		product_thumb: {
 			type: String,
 			required: true,
@@ -22,11 +24,14 @@ const productSchema = new Schema(
 		product_description: String,
 		product_price: {
 			type: Number,
-			required: true,
+			required: [true, "Price is required"],
+			min: [0, "Price cannot be negative"],
 		},
 		product_quantity: {
 			type: Number,
-			required: true,
+			required: [true, "Quantity is required"],
+			min: [0, "Quantity cannot be negative"],
+			default: 0,
 		},
 		product_type: {
 			type: String,
@@ -41,12 +46,44 @@ const productSchema = new Schema(
 			type: Schema.Types.Mixed,
 			required: true,
 		},
+		product_ratingsAverage: {
+			type: Number,
+			default: 4.5,
+			min: [1, "Rating must be above 1.0"],
+			max: [5, "Rating must be below 5.0"],
+			set: (value) => Math.round(value * 10) / 10,
+		},
+		product_variations: {
+			type: Array,
+			default: [],
+		},
+		isDraft: {
+			type: Boolean,
+			default: true,
+			index: true,
+			select: false,
+		},
+		isPublished: {
+			type: Boolean,
+			default: false,
+			index: true,
+			select: false,
+		},
 	},
 	{
 		timestamps: true,
 		collection: COLLECTION_NAME,
 	}
 );
+
+// create index for search
+productSchema.index({ product_name: 'text', product_description: 'text' })
+
+// Document middleware: runs before .save() and .create()
+productSchema.pre('save', function(next) {
+    this.product_slug = slugify(this.product_name, { lower: true })
+    next()
+})
 
 // define the product type = clothing
 const clothingSchema = new Schema(
