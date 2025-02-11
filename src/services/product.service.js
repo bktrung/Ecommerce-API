@@ -10,7 +10,14 @@ import {
 	unpublishProductByShop,
 	queryProduct,
 	searchProductByUser,
+	findAllProducts,
+	findProduct,
+	updateProductById,
 } from "../models/repositories/product.repo.js";
+import {
+	removeUndefinedObject,
+	updateNestedObjectParser,
+} from "../utils/index.js";
 
 class ProductFactory {
 	static productRegistry = {};
@@ -19,13 +26,20 @@ class ProductFactory {
 		ProductFactory.productRegistry[type] = productClass;
 	}
 
-	static async createProduct(type, attributes) {
+	static async createProduct(type, payload) {
 		const productClass = ProductFactory.productRegistry[type];
 		if (!productClass) {
 			throw BadRequestError("Error: Invalid product type");
 		}
+		return new productClass(payload).createProduct();
+	}
 
-		return new productClass(attributes).createProduct();
+	static async updateProduct(type, product_id, payload) {
+		const productClass = ProductFactory.productRegistry[type];
+		if (!productClass) {
+			throw new BadRequestError("Error: Invalid product type");
+		}
+		return new productClass(payload).updateProduct(product_id);
 	}
 
 	static async publishProductByShop({ product_shop, product_id }) {
@@ -41,13 +55,39 @@ class ProductFactory {
 		return await queryProduct({ query, limit, skip });
 	}
 
-	static async findAllPublishedForShop({ product_shop, limit = 50, skip = 0 }) {
+	static async findAllPublishedForShop({
+		product_shop,
+		limit = 50,
+		skip = 0,
+	}) {
 		const query = { product_shop, isPublished: true };
 		return await queryProduct({ query, limit, skip });
 	}
 
 	static async getListSearchProduct({ keySearch }) {
 		return await searchProductByUser({ keySearch });
+	}
+
+	static async findAllProducts({
+		limit = 50,
+		sort = "ctime",
+		page = 1,
+		filter = { isPublished: true },
+	}) {
+		return await findAllProducts({
+			limit,
+			sort,
+			page,
+			filter,
+			select: ["product_name", "product_thumb", "product_price"],
+		});
+	}
+
+	static async findProduct({ product_id }) {
+		return await findProduct({
+			product_id,
+			unselect: ["__v", "product_variations"],
+		});
 	}
 }
 
@@ -78,6 +118,14 @@ class Product {
 			_id: product_id,
 		});
 	}
+
+	async updateProduct(product_id, bodyUpdate) {
+		return await updateProductById({
+			product_id,
+			bodyUpdate,
+			model: product,
+		});
+	}
 }
 
 class Clothing extends Product {
@@ -88,9 +136,7 @@ class Clothing extends Product {
 		});
 
 		if (!newColothing) {
-			throw new BadRequestError(
-				"Error: Failed to create clothing product"
-			);
+			throw new BadRequestError("Error: Failed to create clothing product");
 		}
 
 		const newProduct = await super.createProduct(newColothing._id);
@@ -99,6 +145,26 @@ class Clothing extends Product {
 		}
 
 		return newProduct;
+	}
+
+	async updateProduct(product_id) {
+		const objectParams = removeUndefinedObject(this);
+		if (objectParams.product_attributes) {
+			await updateProductById({
+				product_id,
+				bodyUpdate: updateNestedObjectParser(
+					objectParams.product_attributes
+				),
+				model: clothing,
+			});
+		}
+
+		const updateProduct = await super.updateProduct(
+			product_id,
+			updateNestedObjectParser(objectParams)
+		);
+
+		return updateProduct;
 	}
 }
 
@@ -110,12 +176,12 @@ class Electronic extends Product {
 		});
 
 		if (!newElectronic) {
-			throw new BadRequestError("Failed to create electronic product");
+			throw new BadRequestError("Error: Failed to create electronic product");
 		}
 
 		const newProduct = await super.createProduct(newElectronic._id);
 		if (!newProduct) {
-			throw new BadRequestError("Failed to create product");
+			throw new BadRequestError("Error: Failed to create product");
 		}
 
 		return newProduct;
@@ -130,12 +196,12 @@ class Furniture extends Product {
 		});
 
 		if (!newFurniture) {
-			throw new BadRequestError("Failed to create furniture product");
+			throw new BadRequestError("Error: Failed to create furniture product");
 		}
 
 		const newProduct = await super.createProduct(newFurniture._id);
 		if (!newProduct) {
-			throw new BadRequestError("Failed to create product");
+			throw new BadRequestError("Error: Failed to create product");
 		}
 
 		return newProduct;
