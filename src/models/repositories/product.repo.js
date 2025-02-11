@@ -131,7 +131,10 @@ export const findAllProducts = async ({ limit, sort, page, filter, select }) => 
 
 export const findProduct = async ({ product_id, unselect }) => {
 	const foundProduct = await product
-		.findById(product_id)
+		.findOne({
+			_id: product_id,
+			isPublished: true,
+		})
 		.select(unSelectData(unselect))
 		.lean();
 

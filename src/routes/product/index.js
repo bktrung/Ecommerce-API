@@ -6,6 +6,8 @@ import ProductController from "../../controllers/product.controller.js";
 const router = Router();
 
 router.get("/search/:keySearch", asyncHandler(ProductController.getListSearchProduct));
+router.get("", asyncHandler(ProductController.findAllProducts));
+router.get("/:id", asyncHandler(ProductController.findProduct));
 
 // authentication middleware
 router.use(authentication);
