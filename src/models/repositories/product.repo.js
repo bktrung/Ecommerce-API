@@ -1,7 +1,6 @@
 import { Types } from "mongoose";
 import { product } from "../product.model.js";
 import { NotFoundError } from "../../core/error.response.js";
-import { getSelectData, unSelectData } from "../../utils/index.js";
 
 /**
  * @function searchProductByUser
@@ -104,6 +103,8 @@ export const queryProduct = async ({ query, limit, skip }) => {
 
 export const findAllProducts = async ({ limit, sort, page, filter, select }) => {
 	const skip = (page - 1) * limit;
+
+	// _id is better than createdAt in single-criteria sorting in MongoDB
 	const sortBy = sort === "ctime" ? { _id: -1 } : { _id: 1 };
 
 	// Add total count for pagination
@@ -113,7 +114,7 @@ export const findAllProducts = async ({ limit, sort, page, filter, select }) => 
 			.sort(sortBy)
 			.limit(limit)
 			.skip(skip)
-			.select(getSelectData(select))
+			.select(select)
 			.lean(),
 		product.countDocuments(filter),
 	]);
@@ -135,7 +136,7 @@ export const findProduct = async ({ product_id, unselect }) => {
 			_id: product_id,
 			isPublished: true,
 		})
-		.select(unSelectData(unselect))
+		.select(unselect)
 		.lean();
 
 	if (!foundProduct) {

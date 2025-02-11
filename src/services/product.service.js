@@ -19,6 +19,12 @@ import {
 	updateNestedObjectParser,
 } from "../utils/index.js";
 
+const PRODUCT_TYPE_MODELS = {
+	"Clothing": clothing,
+	"Electronic": electronic,
+	"Furniture": furniture,
+};
+
 class ProductFactory {
 	static productRegistry = {};
 
@@ -86,7 +92,7 @@ class ProductFactory {
 	static async findProduct({ product_id }) {
 		return await findProduct({
 			product_id,
-			unselect: ["__v", "product_variations"],
+			unselect: ["-__v", "-product_variations"],
 		});
 	}
 }
@@ -112,99 +118,70 @@ class Product {
 		this.product_attributes = product_attributes;
 	}
 
-	async createProduct(product_id) {
-		return await product.create({
-			...this,
-			_id: product_id,
-		});
-	}
-
-	async updateProduct(product_id, bodyUpdate) {
-		return await updateProductById({
-			product_id,
-			bodyUpdate,
-			model: product,
-		});
-	}
-}
-
-class Clothing extends Product {
 	async createProduct() {
-		const newColothing = await clothing.create({
-			...this.product_attributes,
-			product_shop: this.product_shop,
-		});
-
-		if (!newColothing) {
-			throw new BadRequestError("Error: Failed to create clothing product");
+		const model = PRODUCT_TYPE_MODELS[this.product_type];
+		if (!model) {
+			throw new BadRequestError("Error: Invalid product type");
 		}
 
-		const newProduct = await super.createProduct(newColothing._id);
+		const newProduct = await model.create({ ...this });
+
 		if (!newProduct) {
-			throw new BadRequestError("Error: Failed to create product");
+			throw new Error("Error: Failed to create product");
 		}
 
 		return newProduct;
 	}
 
 	async updateProduct(product_id) {
-		const objectParams = removeUndefinedObject(this);
-		if (objectParams.product_attributes) {
-			await updateProductById({
-				product_id,
-				bodyUpdate: updateNestedObjectParser(
-					objectParams.product_attributes
-				),
-				model: clothing,
-			});
+		const model = PRODUCT_TYPE_MODELS[this.product_type];
+		if (!model) {
+			throw new BadRequestError("Error: Invalid product type");
 		}
 
-		const updateProduct = await super.updateProduct(
-			product_id,
-			updateNestedObjectParser(objectParams)
-		);
+		const objectParams = removeUndefinedObject(this);
 
-		return updateProduct;
+		const updatedProduct = await updateProductById({
+			product_id,
+			bodyUpdate: updateNestedObjectParser(objectParams),
+			model,
+		});
+
+		if (!updatedProduct) {
+			throw new Error("Error: Failed to update product");
+		}
+
+		return updatedProduct;
+	}
+}
+
+class Clothing extends Product {
+	async createProduct() {
+		return super.createProduct();
+	}
+
+	async updateProduct(product_id) {
+		return super.updateProduct(product_id);
 	}
 }
 
 class Electronic extends Product {
 	async createProduct() {
-		const newElectronic = await electronic.create({
-			...this.product_attributes,
-			product_shop: this.product_shop,
-		});
+		return super.createProduct();
+	}
 
-		if (!newElectronic) {
-			throw new BadRequestError("Error: Failed to create electronic product");
-		}
-
-		const newProduct = await super.createProduct(newElectronic._id);
-		if (!newProduct) {
-			throw new BadRequestError("Error: Failed to create product");
-		}
-
-		return newProduct;
+	async updateProduct(product_id) {
+		return super.updateProduct(product_id);
 	}
 }
 
 class Furniture extends Product {
 	async createProduct() {
-		const newFurniture = await furniture.create({
-			...this.product_attributes,
-			product_shop: this.product_shop,
-		});
+		return super.createProduct();
+	}
 
-		if (!newFurniture) {
-			throw new BadRequestError("Error: Failed to create furniture product");
-		}
-
-		const newProduct = await super.createProduct(newFurniture._id);
-		if (!newProduct) {
-			throw new BadRequestError("Error: Failed to create product");
-		}
-
-		return newProduct;
+	async updateProduct(product_id) {
+		return super.updateProduct(product_id);
 	}
 }
 

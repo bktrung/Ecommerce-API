@@ -19,7 +19,7 @@ router.patch("/:id", asyncHandler(ProductController.updateProduct));
 router.post("/publish/:id", asyncHandler(ProductController.publishProduct));
 router.post("/unpublish/:id", asyncHandler(ProductController.unpublishProduct));
 
-router.get("/drafts", asyncHandler(ProductController.getAllDrafts));
-router.get("/published", asyncHandler(ProductController.getAllPublished));
+router.get("/drafts/all", asyncHandler(ProductController.getAllDrafts));
+router.get("/published/all", asyncHandler(ProductController.getAllPublished));
 
 export default router;

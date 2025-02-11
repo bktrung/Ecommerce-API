@@ -1,5 +1,3 @@
-import pick from 'lodash/pick.js';
-
 /**
  * @function getInfoData
  * @description Extracts and returns specified fields from a source object
@@ -16,14 +14,7 @@ export const getInfoData = ({ fields=[], object={} }) => {
     return pick(object, fields);
 }
 
-export const getSelectData = (select = []) => {
-	return Object.fromEntries(select.map((field) => [field, 1]));
-}
-
-export const unSelectData = (select = []) => {
-	return Object.fromEntries(select.map((field) => [field, 0]));
-};
-
+/*
 // export const removeUndefinedObject = (obj = {}) => {
 // 	Object.keys(obj).forEach((key) => {
 // 		if (
@@ -38,6 +29,7 @@ export const unSelectData = (select = []) => {
 // 	});
 // 	return obj;
 // }; // Here is my origin code, below is imporved version created by genAI
+*/
 
 /**
  * @function removeUndefinedObject
@@ -80,6 +72,7 @@ export const removeUndefinedObject = (obj = {}) => {
 	}, {});
 };
 
+/*
 // export const updateNestedObjectParser = (obj = {}) => {
 // 	const final = {};
 // 	Object.keys(obj).forEach((key) => {
@@ -94,6 +87,7 @@ export const removeUndefinedObject = (obj = {}) => {
 // 	});
 // 	return final;
 // }; // Here is my origin code, below is imporved version created by genAI
+*/
 
 /**
  * @function updateNestedObjectParser

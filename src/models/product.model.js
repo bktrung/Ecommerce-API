@@ -43,9 +43,8 @@ const productSchema = new Schema(
 			ref: "Shop",
 		},
 		product_attributes: {
-			type: Schema.Types.Mixed,
-			required: true,
-		},
+            type: Schema.Types.Mixed,
+        },
 		product_ratingsAverage: {
 			type: Number,
 			default: 4.5,
@@ -73,6 +72,7 @@ const productSchema = new Schema(
 	{
 		timestamps: true,
 		collection: COLLECTION_NAME,
+		discriminatorKey: "product_type",
 	}
 );
 
@@ -85,67 +85,45 @@ productSchema.pre('save', function(next) {
     next()
 })
 
+const BaseProduct = model(DOCUMENT_NAME, productSchema);
+
 // define the product type = clothing
-const clothingSchema = new Schema(
-	{
-		brand: {
-			type: String,
-			required: true,
-		},
+const clothingSchema = new Schema({
+	product_attributes: {
+		brand: { type: String, required: true },
 		size: String,
 		material: String,
-		product_shop: {
-			type: Schema.Types.ObjectId,
-			ref: "Shop",
-		},
-	},
-	{
-		timestamps: true,
-		collection: "clothes",
 	}
-);
+});
 
 // define the product type = electronic
-const electronicSchema = new Schema(
-	{
-		manufacturer: {
-			type: String,
-			required: true,
-		},
+const electronicSchema = new Schema({
+	product_attributes: {
+		manufacturer: { type: String, required: true },
 		model: String,
 		color: String,
-		product_shop: {
-			type: Schema.Types.ObjectId,
-			ref: "Shop",
-		},
-	},
-	{
-		timestamps: true,
-		collection: "electronics",
 	}
-);
+});
 
 // define the product type = furniture
-const furnitureSchema = new Schema(
-	{
-		material: {
-			type: String,
-			required: true,
-		},
+const furnitureSchema = new Schema({
+	product_attributes: {
+		material: { type: String, required: true },
 		color: String,
 		weight: Number,
-		product_shop: {
-			type: Schema.Types.ObjectId,
-			ref: "Shop",
-		},
-	},
-	{
-		timestamps: true,
-		collection: "furnitures",
 	}
-);
+});
 
-export const product = model(DOCUMENT_NAME, productSchema);
-export const clothing = model(PRODUCT_TYPES.CLOTHING, clothingSchema);
-export const electronic = model(PRODUCT_TYPES.ELECTRONIC, electronicSchema);
-export const furniture = model(PRODUCT_TYPES.FURNITURE, furnitureSchema);
+export const product = BaseProduct;
+export const clothing = BaseProduct.discriminator(
+	PRODUCT_TYPES.CLOTHING,
+	clothingSchema
+);
+export const electronic = BaseProduct.discriminator(
+	PRODUCT_TYPES.ELECTRONIC,
+	electronicSchema
+);
+export const furniture = BaseProduct.discriminator(
+	PRODUCT_TYPES.FURNITURE,
+	furnitureSchema
+);
