@@ -1,10 +1,6 @@
 import { BadRequestError } from "../core/error.response.js";
-import {
-	product,
-	clothing,
-	electronic,
-	furniture,
-} from "../models/product.model.js";
+import { product } from "../models/product.model.js";
+import { insertInventory } from "../models/repositories/inventory.repo.js";
 import {
 	publishProductByShop,
 	unpublishProductByShop,
@@ -18,12 +14,6 @@ import {
 	removeUndefinedObject,
 	updateNestedObjectParser,
 } from "../utils/index.js";
-
-const PRODUCT_TYPE_MODELS = {
-	"Clothing": clothing,
-	"Electronic": electronic,
-	"Furniture": furniture,
-};
 
 class ProductFactory {
 	static productRegistry = {};
@@ -119,7 +109,7 @@ class Product {
 	}
 
 	async createProduct() {
-		const model = PRODUCT_TYPE_MODELS[this.product_type];
+		const model = product.discriminators[this.product_type];
 		if (!model) {
 			throw new BadRequestError("Error: Invalid product type");
 		}
@@ -129,6 +119,12 @@ class Product {
 		if (!newProduct) {
 			throw new Error("Error: Failed to create product");
 		}
+
+		await insertInventory(
+			newProduct._id,
+			newProduct.product_shop,
+			newProduct.product_quantity,
+		);
 
 		return newProduct;
 	}
