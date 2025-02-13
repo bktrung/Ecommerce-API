@@ -2,10 +2,10 @@ import inventory from "../inventory.model.js";
 
 export const insertInventory = async (productId, shopId, stock, location) => {
 	const newInventory = await inventory.create({
-		inven_product: productId,
-		inven_shop: shopId,
-		inven_stock: stock,
-		inven_location: location,
+		product: productId,
+		shop: shopId,
+		stock: stock,
+		location: location,
 	});
 
 	if (!newInventory) {

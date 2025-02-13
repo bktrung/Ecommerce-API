@@ -1,35 +1,34 @@
 import { Schema, model } from "mongoose";
-import { type } from "os";
 
 const DOCUMENT_NAME = "Inventory";
 const COLLECTION_NAME = "inventories";
 
 const inventorySchema = new Schema({
-	inven_product: {
+	product: {
 		type: Schema.Types.ObjectId,
 		ref: "Product",
 		required: true,
 	},
-	inven_location: {
+	location: {
 		type: String,
 		default: "unknown",
 	},
-	inven_stock: {
+	stock: {
 		type: Number,
 		required: true,
 	},
-	inven_shop: {
+	shop: {
 		type: Schema.Types.ObjectId,
 		ref: "Shop",
 		required: true,
 	},
-	inven_reservations: {
+	reservations: {
 		type: Array,
 		default: [],
-	}
+	},
 }, {
-		timestamps: true,
-		collection: COLLECTION_NAME,
+	timestamps: true,
+	collection: COLLECTION_NAME,
 });
 
 export default model(DOCUMENT_NAME, inventorySchema);

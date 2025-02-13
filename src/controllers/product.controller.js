@@ -7,10 +7,10 @@ class ProductController {
 			res,
 			message: "Product created successfully",
 			metadata: await ProductService.createProduct(
-				req.body.product_type,
+				req.body.type,
 				{
 					...req.body,
-					product_shop: req.user.userId,
+					shop: req.user.userId,
 				}
 			),
 		});
@@ -21,7 +21,7 @@ class ProductController {
 			res,
 			message: "Product updated successfully",
 			metadata: await ProductService.updateProduct(
-				req.body.product_type,
+				req.body.type,
 				req.params.id,
 				req.body,
 			),

@@ -47,16 +47,12 @@ class ProductFactory {
 	}
 
 	static async findAllDraftsForShop({ product_shop, limit = 50, skip = 0 }) {
-		const query = { product_shop, isDraft: true };
+		const query = { shop: product_shop, isDraft: true };
 		return await queryProduct({ query, limit, skip });
 	}
 
-	static async findAllPublishedForShop({
-		product_shop,
-		limit = 50,
-		skip = 0,
-	}) {
-		const query = { product_shop, isPublished: true };
+	static async findAllPublishedForShop({ product_shop, limit = 50, skip = 0 }) {
+		const query = { shop: product_shop, isPublished: true };
 		return await queryProduct({ query, limit, skip });
 	}
 
@@ -65,51 +61,40 @@ class ProductFactory {
 	}
 
 	static async findAllProducts({
-		limit = 50,
-		sort = "ctime",
-		page = 1,
+		limit = 50, sort = "ctime", page = 1,
 		filter = { isPublished: true },
 	}) {
 		return await findAllProducts({
-			limit,
-			sort,
-			page,
-			filter,
-			select: ["product_name", "product_thumb", "product_price"],
+			limit, sort, page, filter,
+			select: ["name", "thumb", "price"],
 		});
 	}
 
 	static async findProduct({ product_id }) {
 		return await findProduct({
 			product_id,
-			unselect: ["-__v", "-product_variations"],
+			unselect: ["-__v", "-variations"],
 		});
 	}
 }
 
 class Product {
-	constructor({
-		product_name,
-		product_thumb,
-		product_description,
-		product_price,
-		product_quantity,
-		product_type,
-		product_shop,
-		product_attributes,
+	constructor({ 
+		name, thumb, description, price,
+		quantity, type, shop, attributes,
 	}) {
-		this.product_name = product_name;
-		this.product_thumb = product_thumb;
-		this.product_description = product_description;
-		this.product_price = product_price;
-		this.product_quantity = product_quantity;
-		this.product_type = product_type;
-		this.product_shop = product_shop;
-		this.product_attributes = product_attributes;
+		this.name = name;
+		this.thumb = thumb;
+		this.description = description;
+		this.price = price;
+		this.quantity = quantity;
+		this.type = type;
+		this.shop = shop;
+		this.attributes = attributes;
 	}
 
 	async createProduct() {
-		const model = product.discriminators[this.product_type];
+		const model = product.discriminators[this.type];
 		if (!model) {
 			throw new BadRequestError("Error: Invalid product type");
 		}
@@ -122,15 +107,15 @@ class Product {
 
 		await insertInventory(
 			newProduct._id,
-			newProduct.product_shop,
-			newProduct.product_quantity,
+			newProduct.shop,
+			newProduct.quantity,
 		);
 
 		return newProduct;
 	}
 
 	async updateProduct(product_id) {
-		const model = product.discriminators[this.product_type];
+		const model = product.discriminators[this.type];
 		if (!model) {
 			throw new BadRequestError("Error: Invalid product type");
 		}

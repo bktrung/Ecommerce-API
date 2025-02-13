@@ -37,7 +37,7 @@ export const publishProductByShop = async ({ product_shop, product_id }) => {
 		.findOneAndUpdate(
 			{
 				_id: new Types.ObjectId(product_id),
-				product_shop: new Types.ObjectId(product_shop),
+				shop: new Types.ObjectId(product_shop),
 				isDraft: true,
 			},
 			{ $set: { isDraft: false, isPublished: true } },
@@ -66,7 +66,7 @@ export const unpublishProductByShop = async ({ product_shop, product_id }) => {
 		.findOneAndUpdate(
 			{
 				_id: new Types.ObjectId(product_id),
-				product_shop: new Types.ObjectId(product_shop),
+				shop: new Types.ObjectId(product_shop),
 				isPublished: true,
 			},
 			{ $set: { isDraft: true, isPublished: false } },
@@ -93,7 +93,7 @@ export const unpublishProductByShop = async ({ product_shop, product_id }) => {
 export const queryProduct = async ({ query, limit, skip }) => {
 	return await product
 		.find(query)
-		.populate("product_shop", "name email -_id")
+		.populate("shop", "name email -_id")
 		.sort({ updatedAt: -1 })
 		.skip(skip)
 		.limit(limit)

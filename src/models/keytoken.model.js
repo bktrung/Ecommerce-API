@@ -1,13 +1,13 @@
-import mongoose from 'mongoose'; 
+import { Schema, model } from "mongoose";
 
-const DOCUMENT_NAME = 'Key';
-const COLLECTION_NAME = 'keys';
+const DOCUMENT_NAME = "Key";
+const COLLECTION_NAME = "keys";
 
-const keyTokenSchema = new mongoose.Schema({
+const keyTokenSchema = new Schema({
 	user: {
-		type: mongoose.Schema.Types.ObjectId,
+		type: Schema.Types.ObjectId,
 		required: true,
-		ref: 'Shop'
+		ref: "Shop",
 	},
 	publicKey: {
 		type: String,
@@ -15,23 +15,23 @@ const keyTokenSchema = new mongoose.Schema({
 	},
 	refreshTokensUsed: {
 		type: Array,
-		default: []
+		default: [],
 	},
 	refreshToken: {
 		type: String,
-		required: true
+		required: true,
 	},
 	expiresAt: {
 		type: Date,
-		required: true
+		required: true,
 	},
 	isRevoked: {
 		type: Boolean,
-		default: false
-	}
+		default: false,
+	},
 }, {
 	collection: COLLECTION_NAME,
-	timestamps: true
+	timestamps: true,
 });
 
 // Add deviceId if needed multiple devices login
@@ -41,4 +41,4 @@ keyTokenSchema.index({ user: 1 });
 keyTokenSchema.index({ refreshToken: 1 });
 keyTokenSchema.index({ expiresAt: 1 });
 
-export default mongoose.model(DOCUMENT_NAME, keyTokenSchema);
+export default model(DOCUMENT_NAME, keyTokenSchema);

@@ -1,77 +1,112 @@
 import { model, Schema } from "mongoose";
 
-const DOCUMENT_NAME = "Discount";
-const COLLECTION_NAME = "discounts";
+// Discount Usage Schema
+const USAGE_DOCUMENT_NAME = "DiscountUsage";
+const USAGE_COLLECTION_NAME = "discount_usages";
+
+const discountUsageSchema = new Schema({
+	discountId: {
+		type: String,
+		required: true,
+		index: true,
+	},
+	userId: {
+		type: String,
+		required: true,
+		index: true,
+	},
+	usedAt: {
+		type: Date,
+		default: Date.now,
+	},
+}, {
+	timestamps: true,
+	collection: USAGE_COLLECTION_NAME,
+});
+
+// Compound index for faster queries
+discountUsageSchema.index({ discountId: 1, userId: 1 });
+
+// Discount Schema
+const DISCOUNT_DOCUMENT_NAME = "Discount";
+const DISCOUNT_COLLECTION_NAME = "discounts";
 
 const discountSchema = new Schema({
-	discount_name: {
+	name: {
 		type: String,
 		required: true,
 	},
-	discount_description: {
+	description: {
 		type: String,
 		required: true,
 	},
-	discount_type: {
+	type: {
 		type: String,
 		default: "fixed_amount", // or percentage
 	},
-	discount_value: { 
+	value: {
 		type: Number,
 		required: true,
 	},
-	discount_code: {
+	code: {
 		type: String,
 		required: true,
 	},
-	discount_startDate: {
+	startDate: {
 		type: Date,
 		required: true,
 	},
-	discount_endDate: {
+	endDate: {
 		type: Date,
 		required: true,
 	},
-	discount_maxUsage: {
+	maxUsage: {
+		// max usage of the discount code
 		type: Number,
 		default: 1,
 	},
-	discount_usageCount: {
+	usageCount: {
+		// how many times the discount code has been used
 		type: Number,
 		required: true,
 	},
-	discount_usersUsed: {
-		type: Array,
-		default: [],
-	},
-	discount_maxUsagePerUser: {
+	maxUsagePerUser: {
+		// how many times a user can use the discount code
 		type: Number,
 		required: true,
 	},
-	discount_minOrderValue: {
+	minOrderValue: {
+		// minimum order value to use the discount code
 		type: Number,
 		required: true,
 	},
-	discount_shop: {
+	maxValue: {
+		// if type is percentage, then this is the maximum it can discount
+		type: Number,
+		required: true,
+	},
+	shop: {
 		type: Schema.Types.ObjectId,
 		ref: "Shop",
 	},
-	discount_isActive: {
+	isActive: {
 		type: Boolean,
 		default: true,
 	},
-	discount_appliesTo: {
+	appliesTo: {
 		type: String,
 		required: true,
 		enum: ["all", "specific"],
 	},
-	discount_productIds: {
-		type: Array,
+	productIds: {
+		type: [String],
 		default: [],
 	},
 }, {
 	timestamps: true,
-	collection: COLLECTION_NAME,
+	collection: DISCOUNT_COLLECTION_NAME,
 });
 
-export const Discount = model(DOCUMENT_NAME, discountSchema);
+// Export both models
+export const discount = model(DISCOUNT_DOCUMENT_NAME, discountSchema);
+export const discountUsage = model(USAGE_DOCUMENT_NAME, discountUsageSchema);
