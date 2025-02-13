@@ -1,4 +1,4 @@
-import { findShop } from "../models/repositories/shop.repo";
+import { findShop } from "../models/repositories/shop.repo.js";
 
 /**
  * @class ShopService

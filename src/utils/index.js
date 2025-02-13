@@ -1,3 +1,5 @@
+import pick from "lodash/pick.js";
+
 /**
  * @function getInfoData
  * @description Extracts and returns specified fields from a source object

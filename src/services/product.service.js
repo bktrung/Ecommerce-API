@@ -130,7 +130,7 @@ class Product {
 	}
 
 	async updateProduct(product_id) {
-		const model = PRODUCT_TYPE_MODELS[this.product_type];
+		const model = product.discriminators[this.product_type];
 		if (!model) {
 			throw new BadRequestError("Error: Invalid product type");
 		}

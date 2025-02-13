@@ -1,4 +1,4 @@
-import ShopModel from "../models/shop.model.js";
+import ShopModel from "../shop.model.js";
 
 /**
  * @function findShop
