@@ -8,64 +8,64 @@ const discountSchema = new Schema({
 		type: String,
 		required: true,
 	},
-	description: {
+	discount_description: {
 		type: String,
 		required: true,
 	},
-	type: {
+	discount_type: {
 		type: String,
 		default: "fixed_amount", // or percentage
 	},
-	value: { 
+	discount_value: { 
 		type: Number,
 		required: true,
 	},
-	code: {
+	discount_code: {
 		type: String,
 		required: true,
 	},
-	startDate: {
+	discount_startDate: {
 		type: Date,
 		required: true,
 	},
-	endDate: {
+	discount_endDate: {
 		type: Date,
 		required: true,
 	},
-	maxUsage: { // max usage of the discount code
+	discount_maxUsage: {
 		type: Number,
 		default: 1,
 	},
-	usageCount: { // how many times the discount code has been used
+	discount_usageCount: {
 		type: Number,
 		required: true,
 	},
-	usersUsed: { // users who have used the discount code
+	discount_usersUsed: {
 		type: Array,
 		default: [],
 	},
-	maxUsagePerUser: { // max usage of the discount code per user
+	discount_maxUsagePerUser: {
 		type: Number,
 		required: true,
 	},
-	minOrderValue: { // minimum order value to use the discount code
+	discount_minOrderValue: {
 		type: Number,
 		required: true,
 	},
-	shopId: {
+	discount_shop: {
 		type: Schema.Types.ObjectId,
 		ref: "Shop",
 	},
-	isActive: {
+	discount_isActive: {
 		type: Boolean,
 		default: true,
 	},
-	appliesTo: {
+	discount_appliesTo: {
 		type: String,
 		required: true,
 		enum: ["all", "specific"],
 	},
-	productIds: { // products the discount code applies to
+	discount_productIds: {
 		type: Array,
 		default: [],
 	},

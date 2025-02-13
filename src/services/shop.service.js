@@ -1,4 +1,4 @@
-import ShopModel from '../models/shop.model.js';
+import { findShop } from "../models/repositories/shop.repo";
 
 /**
  * @class ShopService
@@ -20,7 +20,7 @@ class ShopService {
 		email,
 		select = { email: 1, password: 1, name: 1, status: 1, roles: 1 },
 	}) {
-		return await ShopModel.findOne({ email }).select(select).lean();
+		return await findShop({ filter: { email }, select });
 	}
 }
 
