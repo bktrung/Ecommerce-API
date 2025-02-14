@@ -1,4 +1,4 @@
-import { BadRequestError } from "../core/error.response.js";
+import { BadRequestError, NotFoundError } from "../core/error.response.js";
 import { product } from "../models/product.model.js";
 import { insertInventory } from "../models/repositories/inventory.repo.js";
 import {
@@ -39,11 +39,19 @@ class ProductFactory {
 	}
 
 	static async publishProductByShop({ product_shop, product_id }) {
-		return await publishProductByShop({ product_shop, product_id });
+		const publishedProduct = await publishProductByShop({ product_shop, product_id });
+		if (!publishedProduct) {
+			throw new NotFoundError("Product not found or already published");
+		}
+		return publishedProduct;
 	}
 
 	static async unpublishProductByShop({ product_shop, product_id }) {
-		return await unpublishProductByShop({ product_shop, product_id });
+		const unpublishedProduct = await unpublishProductByShop({ product_shop, product_id });
+		if (!unpublishedProduct) {
+			throw new NotFoundError("Product not found or already unpublished");
+		}
+		return unpublishedProduct;
 	}
 
 	static async findAllDraftsForShop({ product_shop, limit = 50, skip = 0 }) {
@@ -57,13 +65,19 @@ class ProductFactory {
 	}
 
 	static async getListSearchProduct({ keySearch }) {
+		if (!keySearch) {
+			throw new BadRequestError("Search key is required");
+		}
 		return await searchProductByUser({ keySearch });
 	}
 
 	static async findAllProducts({
 		limit = 50, sort = "ctime", page = 1,
-		filter = { isPublished: true },
+		filter = { isPublished: true }
 	}) {
+		if (page < 1 || limit < 1) {
+			throw new BadRequestError("Invalid pagination parameters");
+		}
 		return await findAllProducts({
 			limit, sort, page, filter,
 			select: ["name", "thumb", "price"],
@@ -71,10 +85,14 @@ class ProductFactory {
 	}
 
 	static async findProduct({ product_id }) {
-		return await findProduct({
+		const foundProduct = await findProduct({
 			product_id,
 			unselect: ["-__v", "-variations"],
 		});
+		if (!foundProduct) {
+			throw new NotFoundError("Product not found");
+		}
+		return foundProduct;
 	}
 }
 
@@ -105,11 +123,15 @@ class Product {
 			throw new Error("Error: Failed to create product");
 		}
 
-		await insertInventory(
+		inventory = await insertInventory(
 			newProduct._id,
 			newProduct.shop,
 			newProduct.quantity,
 		);
+
+		if (!inventory) {
+			throw new Error("Error: Failed to create inventory");
+		}
 
 		return newProduct;
 	}

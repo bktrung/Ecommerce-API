@@ -1,7 +1,14 @@
-import { BadRequestError } from "../core/error.response.js";
-import { createDiscount, findDiscountByCode } from "../models/repositories/discount.repo.js";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../core/error.response.js";
+import {
+	createDiscount,
+	findDiscountByCode,
+	getAllProductDiscounts,
+	activateDiscount,
+	findDiscountById,
+} from "../models/repositories/discount.repo.js";
 import { DISCOUNT_TYPES, APPLY_TYPES } from "../models/discount.model.js";
 import { checkProductsExist } from "../models/repositories/product.repo.js";
+import { findAllProducts } from "../models/repositories/product.repo.js";
 
 /* This should be in another file, but i just use this one time 
    for practicing builder pattern so i just simply put it here, 
@@ -138,31 +145,33 @@ class DiscountBuilder {
 
 	build() {
 		if (this.errors.length > 0) {
-			throw new BadRequestError(this.errors.join(", "));
+			throw new BadRequestError("Error: " + this.errors.join(", "));
 		}
 		return this.discount;
 	}
 }
 
 class DiscountService {
-	static async createDiscount( payload ) {
+	static async createDiscount(payload) {
 		const {
 			name, description, code,
-			type, value, maxValue,
-			maxUsage, maxUsagePerUser, minOrderValue,
-			startDate, endDate,
+			type, value,
+			maxValue, maxUsage, maxUsagePerUser,
+			minOrderValue, startDate, endDate,
 			shop, appliesTo, productIds,
 		} = payload;
 
 		const existingDiscount = await findDiscountByCode({ code, shop });
 		if (existingDiscount) {
-			throw new BadRequestError("Discount code already exists");
+			throw new BadRequestError("Error: Discount code already exists");
 		}
 
 		if (appliesTo === APPLY_TYPES.SPECIFIC && productIds?.length > 0) {
-			const { isValid, notFoundIds } = await checkProductsExist(productIds);
+			const { isValid, notFoundIds } = await checkProductsExist(
+				productIds
+			);
 			if (!isValid) {
-				throw new BadRequestError(`Products not found: ${notFoundIds.join(", ")}`);
+				throw new BadRequestError(`Error: Products not found: ${notFoundIds.join(", ")}`);
 			}
 		}
 
@@ -178,6 +187,91 @@ class DiscountService {
 		discount.description = description;
 
 		return await createDiscount(discount);
+	}
+
+	static async activateDiscount({ discountId, shop }) {
+		const discount = await findDiscountById(discountId);
+		if (!discount) {
+			throw new NotFoundError("Error: Discount not found");
+		}
+
+		if (discount.isActive) {
+			throw new BadRequestError("Error: Discount is already active");
+		}
+
+		if (discount.shop.toString() !== shop) {
+			throw new ForbiddenError("Error: You do not have permission to activate this discount");
+		}
+
+		const activatedDiscount = await activateDiscount(discountId);
+
+		if (!activatedDiscount) {
+			throw new Error("Error: Failed to activate discount");
+		}
+
+		return activatedDiscount;
+	}
+
+	static async getAllProductDiscounts({ productId, filter }) {
+		const existingProduct = await findProduct({ product_id: productId });
+		if (!existingProduct) {
+			throw new NotFoundError("Error: Product not found");
+		}
+
+		return await getAllProductDiscounts({
+			productId,
+			shopId: existingProduct.shop,
+			filter,
+			select: [
+				"code", "value", "maxUsage", "usageCount", "type", 
+				"maxUsagePerUser", "minOrderValue", "maxValue",
+			],
+		});
+	}
+
+	static async getAllAppliedProducts({ 
+		code, shopId, limit = 50, page = 1, 
+	}) {
+		if (page < 1 || limit < 1) {
+			throw new BadRequestError("Invalid pagination parameters");
+		}
+
+		const discount = await findDiscountByCode({ code, shop: shopId });
+		if (!discount) {
+			throw new NotFoundError("Error: Discount not found");
+		}
+
+		const now = new Date();
+		if (!discount.isActive || discount.startDate > now || discount.endDate < now) {
+			throw new BadRequestError("Error: Discount is not available");
+		}
+
+		if (discount.maxUsage <= discount.usageCount) {
+			throw new BadRequestError("Error: Discount is not available");
+		}
+
+		const queryOptions = {
+			limit,
+			sort: "ctime",
+			page,
+			select: ["_id", "name"],
+		};
+
+		return discount.appliesTo === APPLY_TYPES.ALL
+			? await findAllProducts({
+					...queryOptions,
+					filter: {
+						shop: shopId,
+						isPublished: true,
+					},
+			  })
+			: await findAllProducts({
+					...queryOptions,
+					filter: {
+						_id: { $in: discount.productIds },
+						isPublished: true,
+					},
+			  });
 	}
 }
 

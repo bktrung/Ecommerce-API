@@ -1,6 +1,5 @@
 import { Types } from "mongoose";
 import { product } from "../product.model.js";
-import { NotFoundError } from "../../core/error.response.js";
 
 /**
  * @function searchProductByUser
@@ -10,7 +9,7 @@ import { NotFoundError } from "../../core/error.response.js";
  * @returns {Promise<Array>} Array of matching product documents
  */
 export const searchProductByUser = async ({ keySearch }) => {
-	const results = await product
+	return await product
 		.find(
 			{
 				isPublished: true,
@@ -20,7 +19,6 @@ export const searchProductByUser = async ({ keySearch }) => {
 		)
 		.sort({ score: { $meta: "textScore" } })
 		.lean();
-	return results;
 };
 
 /**
@@ -29,11 +27,10 @@ export const searchProductByUser = async ({ keySearch }) => {
  * @param {Object} params - Product parameters
  * @param {string} params.product_shop - Shop ID that owns the product
  * @param {string} params.product_id - ID of product to publish
- * @throws {NotFoundError} If product not found or already published
  * @returns {Promise<Object>} Updated product document
  */
 export const publishProductByShop = async ({ product_shop, product_id }) => {
-	const updatedProduct = await product
+	return await product
 		.findOneAndUpdate(
 			{
 				_id: new Types.ObjectId(product_id),
@@ -44,12 +41,6 @@ export const publishProductByShop = async ({ product_shop, product_id }) => {
 			{ new: true }
 		)
 		.lean();
-
-	if (!updatedProduct) {
-		throw new NotFoundError("Error: Product not found or already published");
-	}
-
-	return updatedProduct;
 };
 
 /**
@@ -58,11 +49,10 @@ export const publishProductByShop = async ({ product_shop, product_id }) => {
  * @param {Object} params - Product parameters
  * @param {string} params.product_shop - Shop ID that owns the product
  * @param {string} params.product_id - ID of product to unpublish
- * @throws {NotFoundError} If product not found or already unpublished
  * @returns {Promise<Object>} Updated product document
  */
 export const unpublishProductByShop = async ({ product_shop, product_id }) => {
-	const updatedProduct = await product
+	return await product
 		.findOneAndUpdate(
 			{
 				_id: new Types.ObjectId(product_id),
@@ -73,12 +63,6 @@ export const unpublishProductByShop = async ({ product_shop, product_id }) => {
 			{ new: true }
 		)
 		.lean();
-
-	if (!updatedProduct) {
-		throw new NotFoundError("Error: Product not found or already unpublished");
-	}
-
-	return updatedProduct;
 };
 
 /**
@@ -131,38 +115,24 @@ export const findAllProducts = async ({ limit, sort, page, filter, select }) => 
 };
 
 export const findProduct = async ({ product_id, unselect }) => {
-	const foundProduct = await product
+	return await product
 		.findOne({
 			_id: product_id,
 			isPublished: true,
 		})
 		.select(unselect)
 		.lean();
-
-	if (!foundProduct) {
-		throw new NotFoundError("Error: Product not found");
-	}
-
-	return foundProduct;
 };
 
-export const updateProductById = async ({
-	product_id,
-	bodyUpdate,
-	model,
-	isNew = true,
+export const updateProductById = async ({ 
+	product_id, bodyUpdate,
+	model, isNew = true,
 }) => {
-	const updatedProduct = await model.findByIdAndUpdate(
+	return await model.findByIdAndUpdate(
 		product_id,
 		{ $set: bodyUpdate },
 		{ new: isNew }
 	).lean();
-
-	if (!updatedProduct) {
-		throw new NotFoundError("Error: Product not found");
-	}
-
-	return updatedProduct;
 };
 
 export const checkProductsExist = async (productIds) => {
