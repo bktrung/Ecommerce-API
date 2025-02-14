@@ -164,3 +164,21 @@ export const updateProductById = async ({
 
 	return updatedProduct;
 };
+
+export const checkProductsExist = async (productIds) => {
+	const products = await product
+		.find({
+			_id: { $in: productIds },
+			isPublished: true,
+		})
+		.select("_id")
+		.lean();
+
+	const foundIds = products.map((p) => p._id.toString());
+	const notFoundIds = productIds.filter((id) => !foundIds.includes(id));
+
+	return {
+		isValid: notFoundIds.length === 0,
+		notFoundIds,
+	};
+};

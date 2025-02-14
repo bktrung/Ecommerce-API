@@ -31,18 +31,26 @@ discountUsageSchema.index({ discountId: 1, userId: 1 });
 const DISCOUNT_DOCUMENT_NAME = "Discount";
 const DISCOUNT_COLLECTION_NAME = "discounts";
 
+export const DISCOUNT_TYPES = {
+	FIXED_AMOUNT: "fixed_amount",
+	PERCENTAGE: "percentage",
+};
+
+export const APPLY_TYPES = {
+	ALL: "all",
+	SPECIFIC: "specific",
+};
+
 const discountSchema = new Schema({
 	name: {
 		type: String,
 		required: true,
 	},
-	description: {
-		type: String,
-		required: true,
-	},
+	description: String,
 	type: {
 		type: String,
-		default: "fixed_amount", // or percentage
+		default: DISCOUNT_TYPES.FIXED_AMOUNT,
+		enum: Object.values(DISCOUNT_TYPES),
 	},
 	value: {
 		type: Number,
@@ -63,12 +71,18 @@ const discountSchema = new Schema({
 	maxUsage: {
 		// max usage of the discount code
 		type: Number,
-		default: 1,
+		required: true,
+	},
+	usersUsing: {
+		// users who holding the discount in payment process but not finish yet
+		type: [String],
+		default: [],
+		select: false,
 	},
 	usageCount: {
 		// how many times the discount code has been used
 		type: Number,
-		required: true,
+		default: 0,
 	},
 	maxUsagePerUser: {
 		// how many times a user can use the discount code
@@ -91,12 +105,12 @@ const discountSchema = new Schema({
 	},
 	isActive: {
 		type: Boolean,
-		default: true,
+		default: false,
 	},
 	appliesTo: {
 		type: String,
 		required: true,
-		enum: ["all", "specific"],
+		enum: Object.values(APPLY_TYPES),
 	},
 	productIds: {
 		type: [String],
