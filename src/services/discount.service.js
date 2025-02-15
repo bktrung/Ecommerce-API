@@ -5,6 +5,7 @@ import {
 	getAllProductDiscounts,
 	activateDiscount,
 	findDiscountById,
+	getAllDiscounts,
 } from "../models/repositories/discount.repo.js";
 import { DISCOUNT_TYPES, APPLY_TYPES } from "../models/discount.model.js";
 import { checkProductsExist } from "../models/repositories/product.repo.js";
@@ -210,6 +211,16 @@ class DiscountService {
 		}
 
 		return activatedDiscount;
+	}
+
+	static async getAllDiscountsByShop({ shopId, limit = 50, page = 1 }) {
+		return await getAllDiscounts({
+			limit: +limit,
+			sort: "ctime",
+			page: +page,
+			filter: { shop: shopId },
+			select: ["code", "name", "isActive", "startDate", "endDate"],
+		})
 	}
 
 	static async getAllProductDiscounts({ productId, filter }) {

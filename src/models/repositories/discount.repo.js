@@ -1,3 +1,4 @@
+import { getAllDocuments } from "../../utils/index.js";
 import { discount } from "../discount.model.js";
 import { APPLY_TYPES } from "../discount.model.js";
 
@@ -7,6 +8,14 @@ export const findDiscountByCode = async ({ code, shop }) => {
 
 export const findDiscountById = async (discountId) => {
 	return await discount.findById(discountId).lean();
+}
+
+export const getAllDiscounts = async ({ 
+	limit, sort, page, filter, select 
+}) => {
+	return getAllDocuments(discount, {
+		limit, sort, page, filter, select
+	});
 }
 
 export const createDiscount = async (discountData) => {

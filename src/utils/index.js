@@ -129,3 +129,35 @@ export const updateNestedObjectParser = (obj = {}, parentKey = "") => {
 		return acc;
 	}, {});
 };
+
+export const getAllDocuments = async (
+	model,
+	{ limit, sort, page, filter, select }
+) => {
+	const skip = (page - 1) * limit;
+
+	// _id is better than createdAt in single-criteria sorting in MongoDB
+	const sortBy = sort === "ctime" ? { _id: -1 } : { _id: 1 };
+
+	// Add total count for pagination
+	const [documents, totalCount] = await Promise.all([
+		model
+			.find(filter)
+			.sort(sortBy)
+			.limit(limit)
+			.skip(skip)
+			.select(select)
+			.lean(),
+		model.countDocuments(filter),
+	]);
+
+	return {
+		pagination: {
+			total: totalCount,
+			page,
+			limit,
+			totalPages: Math.ceil(totalCount / limit),
+		},
+		documents,
+	};
+}

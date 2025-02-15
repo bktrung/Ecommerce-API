@@ -24,6 +24,18 @@ class DiscountController {
 		});
 	}
 
+	getAllDiscountsByShop = async (req, res, next) => {
+		OK.send({
+			res,
+			message: "All discounts fetched successfully",
+			metadata: await DiscountService.getAllDiscountsByShop({
+				shopId: req.user.userId,
+				limit: req.query.limit,
+				page: req.query.page,
+			}),
+		});
+	}
+
 	getAllProductDiscounts = async (req, res, next) => {
 		OK.send({
 			res,

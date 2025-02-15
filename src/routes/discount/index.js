@@ -11,6 +11,7 @@ router.get("/products/", asyncHandler(discountController.getAllAppliedProducts))
 router.use(authentication);
 
 router.post("", asyncHandler(discountController.createDiscount));
+router.get("", asyncHandler(discountController.getAllDiscountsByShop));
 router.post("/activate/:id", asyncHandler(discountController.activateDiscount));
 
 export default router;
