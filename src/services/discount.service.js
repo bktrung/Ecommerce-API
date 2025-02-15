@@ -7,7 +7,7 @@ import {
 	findDiscountById,
 	getAllDiscounts,
 } from "../models/repositories/discount.repo.js";
-import { DISCOUNT_TYPES, APPLY_TYPES } from "../models/discount.model.js";
+import { DISCOUNT_TYPES, APPLY_TYPES, discount } from "../models/discount.model.js";
 import { checkProductsExist } from "../models/repositories/product.repo.js";
 import { findAllProducts } from "../models/repositories/product.repo.js";
 
@@ -283,6 +283,84 @@ class DiscountService {
 						isPublished: true,
 					},
 			  });
+	}
+
+	static async getDiscountAmount({ code, shopId, products }) {
+		if (!Array.isArray(products) || products.length === 0) {
+			throw new BadRequestError("Error: Products array is required");
+		}
+
+		if (!products.every(item => item.productId && item.quantity > 0)) {
+			throw new BadRequestError("Error: Each product must have productId and valid quantity");
+		}
+
+		const discount = await findDiscountByCode({ code, shop: shopId });
+		if (!discount) {
+			throw new NotFoundError("Error: Discount not found");
+		}
+
+		const now = new Date();
+		if (!discount.isActive || discount.startDate > now || discount.endDate < now) {
+			throw new BadRequestError("Error: Discount is not available");
+		}
+
+		if (discount.maxUsage <= discount.usageCount) {
+			throw new BadRequestError("Error: Discount is not available");
+		}
+
+		const productIds = products.map(item => item.productId);
+		const { products: foundProducts } = await findAllProducts({
+			filter: {
+				_id: { $in: productIds },
+				isPublished: true
+			},
+			select: ['_id', 'price', 'name']
+		});
+
+		const productMap = new Map(
+			foundProducts.map(p => [p._id.toString(), p])
+		);
+
+		let totalOrder = 0;
+		let discountableAmount = 0;
+
+		for (const item of products) {
+			const product = productMap.get(item.productId);
+			if (!product) {
+				throw new NotFoundError(`Error: Product ${item.productId} not found`);
+			}
+
+			const itemTotal = product.price * item.quantity;
+        	totalOrder += itemTotal;
+
+			// Add to discountable amount if product is eligible
+			if (discount.appliesTo === APPLY_TYPES.ALL || 
+				(discount.appliesTo === APPLY_TYPES.SPECIFIC && 
+				discount.productIds.includes(item.productId))) {
+				discountableAmount += itemTotal;
+			}
+		}
+
+		if (totalOrder < discount.minOrderValue) {
+			throw new BadRequestError(`Error: Order total must be at least ${discount.minOrderValue}`);
+		}
+
+		let discountAmount = 0;
+		if (discount.type === DISCOUNT_TYPES.FIXED) {
+			discountAmount = discount.value;
+		} else if (discount.type === DISCOUNT_TYPES.PERCENTAGE) {
+			discountAmount = (discountableAmount * discount.value) / 100;
+			// Cap discount at maxValue for percentage discounts
+			if (discountAmount > discount.maxValue) {
+				discountAmount = discount.maxValue;
+			}
+		}
+
+		return {
+			totalOrder,
+			discount: discountAmount,
+			totalPrice: totalOrder - discountAmount
+		}
 	}
 }
 

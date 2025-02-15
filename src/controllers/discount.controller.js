@@ -59,6 +59,18 @@ class DiscountController {
 			}),
 		});
 	}
+
+	getDiscountAmount = async (req, res, next) => {
+		OK.send({
+			res,
+			message: "Discount amount fetched successfully",
+			metadata: await DiscountService.getDiscountAmount({
+				code: req.body.code,
+				shopId: req.body.shopId,
+				products: req.body.products
+			}),
+		});
+	}
 }
 
 export default new DiscountController();

@@ -6,6 +6,7 @@ const router = Router();
 
 router.get("/product/:productId", asyncHandler(discountController.getAllProductDiscounts));
 router.get("/products/", asyncHandler(discountController.getAllAppliedProducts));
+router.get("/amount", asyncHandler(discountController.getDiscountAmount));
 
 // Authentication
 router.use(authentication);

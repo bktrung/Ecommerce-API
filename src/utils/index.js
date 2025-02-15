@@ -151,6 +151,8 @@ export const getAllDocuments = async (
 		model.countDocuments(filter),
 	]);
 
+	const modelName = model.modelName.toLowerCase() + 's';
+
 	return {
 		pagination: {
 			total: totalCount,
@@ -158,6 +160,6 @@ export const getAllDocuments = async (
 			limit,
 			totalPages: Math.ceil(totalCount / limit),
 		},
-		documents,
+		[modelName]: documents,
 	};
 }
