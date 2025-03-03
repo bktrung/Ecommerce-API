@@ -130,3 +130,17 @@ export const checkProductsExist = async (productIds) => {
 		notFoundIds,
 	};
 };
+
+export const checkProductByServer = async (products) => {
+	return await Promise.all( products.map(async (product) => {
+		const foundProduct = await findProduct({ product_id: product.productId });
+		if (foundProduct) {
+			return {
+				price: foundProduct.price,
+				quantity: product.quantity,
+				productId: product.productId,
+			}
+		}
+	}
+	));
+}

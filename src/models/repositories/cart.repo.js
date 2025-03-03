@@ -86,3 +86,7 @@ export const removeItemFromCart = async ({ userId, productId }) => {
 export const findCartByUserId = async ({ userId }) => {
 	return await cart.findOne({ userId }).lean();
 }
+
+export const findCartById = async ({ cartId }) => {
+	return await cart.findOne({ _id: cartId, status: "active" }).lean();
+}
