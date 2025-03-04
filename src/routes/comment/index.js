@@ -9,5 +9,6 @@ router.use(authentication);
 
 router.post("", asyncHandler(CommentController.createComment));
 router.get("", asyncHandler(CommentController.getListComment));
+router.delete("/:id", asyncHandler(CommentController.deleteComment));
 
 export default router;

@@ -72,3 +72,37 @@ export const getListComment = async ({
 		.sort({ left: 1 }).skip(skip).limit(limit)
 		.select("-__v -isDeleted -updatedAt");
 }
+
+export const findCommentById = async (commentId) => {
+	return await comment.findById(commentId).lean();
+}
+
+export const deleteComment = async (foundComment) => {
+	const leftValue = foundComment.left;
+	const rightValue = foundComment.right;
+
+	const width = rightValue - leftValue + 1;
+
+	await comment.deleteMany({
+		productId: foundComment.productId,
+		left: { $gte: leftValue },
+		right: { $lte: rightValue }
+	});
+
+	await comment.bulkWrite([
+		{
+			updateMany: {
+				filter: { productId: foundComment.productId, left: { $gt: rightValue } },
+				update: { $inc: { left: -width } }
+			}
+		},
+		{
+			updateMany: {
+				filter: { productId: foundComment.productId, right: { $gt: rightValue } },
+				update: { $inc: { right: -width } }
+			}
+		}
+	]);
+
+	return foundComment;
+}

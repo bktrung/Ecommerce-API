@@ -1,4 +1,5 @@
-import { createComment, getListComment } from "../models/repositories/comment.repo.js";
+import { createComment, deleteComment, findCommentById, getListComment } from "../models/repositories/comment.repo.js";
+import { ForbiddenError, NotFoundError } from "../core/error.response.js";
 
 /*
 	addComment [User | Shop]
@@ -21,6 +22,20 @@ class CommentService {
 		return await getListComment({
 			productId, parentId, limit, page
 		});
+	}
+
+	static async deleteComment({ commentId, userId }) {
+		const foundComment = await findCommentById(commentId);
+		if (!foundComment) {
+			throw new NotFoundError("Comment not found");
+		}
+
+		// check permission [User | Shop | Admin]
+		if (foundComment.userId.toString() !== userId) {
+			throw new ForbiddenError("Permission denied");
+		}
+
+		return await deleteComment(foundComment);
 	}
 }
 
