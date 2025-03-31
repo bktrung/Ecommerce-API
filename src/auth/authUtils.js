@@ -169,6 +169,7 @@ export const authentication = asyncHandler(async (req, res, next) => {
 	if (decodeUser.userId !== userId) {
 		throw new AuthFailureError("Error: Invalid request");
 	}
+
 	// Attach key token and user to request object
 	req.keyToken = keyToken;
 	req.user = decodeUser;

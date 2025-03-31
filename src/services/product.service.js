@@ -123,7 +123,7 @@ class Product {
 			throw new Error("Error: Failed to create product");
 		}
 
-		inventory = await insertInventory(
+		const inventory = await insertInventory(
 			newProduct._id,
 			newProduct.shop,
 			newProduct.quantity,

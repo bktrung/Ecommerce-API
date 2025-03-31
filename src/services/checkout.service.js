@@ -2,7 +2,6 @@ import { findCartById } from "../models/repositories/cart.repo.js";
 import { BadRequestError } from "../core/error.response.js";
 import { checkProductByServer } from "../models/repositories/product.repo.js";
 import DiscountService from "./discount.service.js";
-
 import order from "../models/order.model.js";
 
 class CheckoutService {
