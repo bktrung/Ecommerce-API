@@ -29,3 +29,21 @@ export const reservationInventory = async (productId, cartId, quantity) => {
 
 	return await inventory.findOneAndUpdate(query, update, options).lean();
 }
+
+export const rollbackInventory = async (productId, cartId, quantity) => {
+	const query = {
+		productId,
+		"reservations.cartId": cartId,
+	}, update = {
+		$inc: { stock: quantity },
+		$pull: {
+			reservations: {
+				cartId
+			}
+		}
+	}, options = {
+		new: true
+	};
+
+	return await inventory.findOneAndUpdate(query, update, options).lean();
+}

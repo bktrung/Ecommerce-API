@@ -3,6 +3,8 @@ import { BadRequestError } from "../core/error.response.js";
 import { checkProductByServer } from "../models/repositories/product.repo.js";
 import DiscountService from "./discount.service.js";
 import order from "../models/order.model.js";
+import { acquireLock, releaseLock } from "./redis.service.js";
+import { rollbackInventory } from "../models/repositories/inventory.repo.js";
 
 class CheckoutService {
 	/*
@@ -95,9 +97,9 @@ class CheckoutService {
 		}
 	}
 
-	static async checkoutOrder({ 
+	static async checkoutOrder({
 		shopOrderIds, userId, cartId,
-		userAddress, userPhone, userPayment
+		userAddress = {}, userPayment = {}
 	}) {
 		const { shopOrderIdsNew, checkoutOrder } = await this.checkoutReview({
 			cartId, userId, shopOrderIds
@@ -105,55 +107,75 @@ class CheckoutService {
 
 		// check inventory
 		const products = shopOrderIdsNew.flatMap((order) => order.items);
-		const locks = [];
-		const acquiredProducts = []
-		for (let i = 0; i < products.length; i++) {
-			const product = products[i];
-			const lockResource = `product_lock:${product.productId}`;
-			try {
-				// Acquire lock for 3 seconds
-				const lock = await redlock.acquire([lockResource], 3000);
-				locks.push(lock);
-
-				// Try to reserve inventory
-				const reservation = await reservationInventory(
-					product.productId,
-					cartId,
-					product.quantity
-				);
-
-				acquiredProducts.push(!!reservation);
-			} catch (error) {
-				// Failed to acquire lock or reserve inventory
-				acquiredProducts.push(false);
-				// Continue the loop to collect all results
-			}
-		}
+		const acquiredLocks = [];
+		const reservedProducts = [];
 
 		try {
-			// Check if all products were acquired successfully
-			if (acquiredProducts.includes(false)) {
-				throw new BadRequestError('One or more products are out of stock');
+			// Acquire locks and reserve inventory
+			for (let i = 0; i < products.length; i++) {
+				const { productId, quantity } = products[i];
+				const keyLock = await acquireLock(productId, quantity, cartId);
+
+				if (!keyLock) {
+					// If any lock fails, rollback all previous reservations and release locks
+					for (const { productId, quantity } of reservedProducts) {
+						await rollbackInventory(productId, cartId, quantity);
+					}
+					for (const lock of acquiredLocks) {
+						await releaseLock(lock);
+					}
+					throw new BadRequestError('Product out of stock in inventory');
+				}
+
+				acquiredLocks.push(keyLock);
+				reservedProducts.push({ productId, quantity });
 			}
 
-			// Create the order
+			// Create order with reserved inventory
 			const newOrder = await order.create({
 				userId,
 				checkout: checkoutOrder,
 				shipping: userAddress,
 				payment: userPayment,
-				products: shopOrderIdsNew
+				products: shopOrderIdsNew,
 			});
 
-			// TODO: Remove items from cart after successful order
-			// if (newOrder) {
-			//   await CartService.removeCartItems({ userId, cartId, items: products.map(p => p.productId) });
-			// }
+			// If order creation successful, update cart
+			if (newOrder) {
+				// remove products from cart
+				const foundCart = await findCartById({ cartId });
+				if (!foundCart) {
+					throw new BadRequestError('Cart not found');
+				}
+				const items = foundCart.items.filter((item) => {
+					return !shopOrderIdsNew.some((order) => {
+						return order.items.some((product) => {
+							return product.productId.toString() === item.productId.toString();
+						});
+					});
+				});
+
+				await foundCart.updateOne({ items });
+			}
+
+			// Release all locks after successful order
+			for (const lock of acquiredLocks) {
+				await releaseLock(lock);
+			}
 
 			return newOrder;
-		} finally {
-			// Release all locks regardless of success or failure
-			await Promise.all(locks.map(lock => lock.release()));
+		} catch (error) {
+			// Rollback inventory reservations on any error
+			for (const { productId, quantity } of reservedProducts) {
+				await rollbackInventory(productId, cartId, quantity);
+			}
+
+			// Release all locks
+			for (const lock of acquiredLocks) {
+				await releaseLock(lock);
+			}
+
+			throw error;
 		}
 	}
 
