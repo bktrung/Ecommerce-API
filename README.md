@@ -27,12 +27,8 @@ add const reservationSchema = new Schema({
 
 improve cart and order services
 
-refactor redis init to singleton and redlock
+refactor checkout & order & redlock
 
-### TODO:
-- Implement inventory reservation system:
-  - [ ] Add checkout session management
-  - [ ] Create temporary inventory holds
-  - [ ] Add reservation cleanup job
-  - [ ] Handle concurrent checkouts
-  - [ ] Add payment integration
+update discord to only log error
+
+add cache for optimize auth blacklist token

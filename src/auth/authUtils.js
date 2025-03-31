@@ -2,8 +2,9 @@ import pkg from 'jsonwebtoken';
 const { sign, verify } = pkg;
 import { createHash, generateKeyPairSync } from "crypto";
 import { asyncHandler } from '../helpers/asyncHandler.js';
-import { AuthFailureError, NotFoundError } from '../core/error.response.js';
+import { AuthFailureError, ForbiddenError, NotFoundError } from '../core/error.response.js';
 import KeyTokenService from '../services/keytoken.service.js';
+import { findByKey } from '../models/repositories/apikey.repo.js';
 
 
 const TOKEN_TYPES = {
@@ -14,6 +15,7 @@ const TOKEN_TYPES = {
 const HEADER = {
 	AUTHORIZATION: "authorization",
 	CLIENT_ID: "client-id",
+	API_KEY: "x-api-key",
 };
 
 /**
@@ -162,17 +164,38 @@ export const authentication = asyncHandler(async (req, res, next) => {
 		throw new AuthFailureError("Error: Invalid request");
 	}
 
-	try {
-		// Decode access token and verify user ID
-		const decodeUser = verifyToken(accessToken, keyToken.publicKey);
-		if (decodeUser.userId !== userId) {
-			throw new AuthFailureError("Error: Invalid request");
-		}
-		// Attach key token and user to request object
-		req.keyToken = keyToken;
-		req.user = decodeUser;
-		return next();
-	} catch (error) {
-		throw new AuthFailureError("Error: Invalid token");
+	// Decode access token and verify user ID
+	const decodeUser = verifyToken(accessToken, keyToken.publicKey);
+	if (decodeUser.userId !== userId) {
+		throw new AuthFailureError("Error: Invalid request");
 	}
+	// Attach key token and user to request object
+	req.keyToken = keyToken;
+	req.user = decodeUser;
+	next();
 });
+
+export const apiKey = asyncHandler(async (req, res, next) => {
+	const apiKey = req.headers[HEADER.API_KEY];
+	if (!apiKey) {
+		throw new ForbiddenError("Error: Invalid request");
+	}
+
+	const existingKey = await findByKey(apiKey);
+	if (!existingKey) {
+		throw new ForbiddenError("Error: Invalid request");
+	}
+
+	req.apiKey = existingKey;
+
+	next();
+});
+
+export const permission = (permission) => {
+	return (req, res, next) => {
+		if (!req.apiKey?.permissions?.includes(permission)) {
+			throw new ForbiddenError("Permission denied");
+		}
+		next();
+	}
+}

@@ -1,5 +1,4 @@
 import { Client, GatewayIntentBits } from "discord.js";
-import e from "express";
 
 class LoggerService {
 	constructor() {
